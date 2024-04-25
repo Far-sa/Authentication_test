@@ -5,6 +5,7 @@ go 1.22.0
 require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/labstack/echo/v4 v4.12.0
+	github.com/rabbitmq/amqp091-go v1.9.0
 )
 
 require (

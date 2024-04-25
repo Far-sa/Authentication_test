@@ -18,7 +18,7 @@ func NewAuthHandler(authService ports.AuthService) authHandler {
 	return authHandler{authService}
 }
 
-func (h authHandler) UserLoginHandler(c echo.Context) error {
+func (h authHandler) Login(c echo.Context) error {
 
 	var req param.LoginRequest
 	if err := c.Bind(&req); err != nil {
@@ -43,16 +43,16 @@ func (h authHandler) UserLoginHandler(c echo.Context) error {
 }
 
 // RevokeTokenHandler handles requests to revoke a token
-func (h *authHandler) RevokeTokenHandler(c echo.Context) error {
-	// Parse token identifier from request
-	tokenID := c.QueryParam("token_id")
+// func (h *authHandler) RevokeToken(c echo.Context) error {
+// 	// Parse token identifier from request
+// 	tokenID := c.QueryParam("token_id")
 
-	// Call token service to revoke token
-	if err := h.authService.RevokeToken(tokenID); err != nil {
-		// Handle error
-		return c.String(http.StatusInternalServerError, "Failed to revoke token")
-	}
+// 	// Call token service to revoke token
+// 	if err := h.authService.RevokeToken(c.Request().Context(), tokenID); err != nil {
+// 		// Handle error
+// 		return c.String(http.StatusInternalServerError, "Failed to revoke token")
+// 	}
 
-	// Respond with success
-	return c.String(http.StatusOK, "Token revoked successfully")
-}
+// 	// Respond with success
+// 	return c.String(http.StatusOK, "Token revoked successfully")
+// }

@@ -2,8 +2,10 @@ package main
 
 import (
 	"auth-svc/adapters/delivery"
-	"auth-svc/internal/repository"
+	"auth-svc/adapters/messaging"
+	"auth-svc/adapters/repository"
 	"auth-svc/internal/service"
+	"log"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -16,15 +18,20 @@ func main() {
 	e.Use(middleware.Recover())
 
 	authRepo := repository.NewAuthRepository()
-	authSvc := service.NewAuthService(authRepo)
+
+	publisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672", "users")
+	if err != nil {
+		log.Fatalf("failed to connect to RabbitMQ: %v", err)
+	}
+	authSvc := service.NewAuthService(authRepo, publisher)
 
 	authHandler := delivery.NewAuthHandler(authSvc)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":8000"))
 
-	e.POST("/login", authHandler.UserLoginHandler)
-	e.GET("/revoke-token", authHandler.RevokeTokenHandler)
+	e.POST("/login", authHandler.Login)
+	// e.GET("/revoke-token", authHandler.RevokeToken)
 
 	// 	// Start server
 	e.Logger.Fatal(e.Start(":8080"))

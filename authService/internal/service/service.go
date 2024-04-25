@@ -30,20 +30,20 @@ const (
 
 type authService struct {
 	authRepo ports.AuthRepository
+	event    ports.EventPublisher
 }
 
 // NewTokenHandler creates a new TokenHandler with the given authService
-func NewAuthService(authRepo ports.AuthRepository) authService {
+func NewAuthService(authRepo ports.AuthRepository, event ports.EventPublisher) authService {
 	return authService{authRepo: authRepo}
 }
 
 func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.LoginResponse, error) {
 
 	//TODO: get user info from rabbitmq
-	user, err := s.authRepo.GetUserByPhoneNumber(req.PhoneNumber)
-	if err != nil {
-		return param.LoginResponse{}, fmt.Errorf("failed to get user ,%v", err)
-	}
+	queue, _ := s.event.CreateQueue()
+	_ := s.event.CreateBinding()
+	messages, _ := s.event.Consume()
 
 	if user.Password != getMD5Hash(req.Password) {
 		return param.LoginResponse{}, fmt.Errorf("username/ password incorrect")
@@ -71,6 +71,10 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 func (s authService) AddRevokedToken(tokenID string) error {
 	panic("")
 }
+
+// func (s authService) IsRevokedToken(tokenID string) error {
+// 	panic("")
+// }
 
 func (s authService) createAccessToken(user entity.User) (string, error) {
 	return s.createToken(user.ID, AccessTokenSubject, AccessTokenExpirationDuration)
