@@ -1,9 +1,9 @@
 package service
 
 import (
-	"auth-svc/internal/authenticate/entity"
-	"auth-svc/internal/authenticate/param"
-	"auth-svc/internal/authenticate/ports"
+	"auth-svc/internal/entity"
+	"auth-svc/internal/param"
+	"auth-svc/internal/ports"
 	"context"
 	"fmt"
 	"strings"
@@ -50,12 +50,12 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 	}
 
 	// create tokens
-	accessToken, err := s.CreateAccessToken(user)
+	accessToken, err := s.createAccessToken(user)
 	if err != nil {
 		return param.LoginResponse{}, fmt.Errorf("unexpected error : %w", err)
 	}
 
-	refreshToken, err := s.RefreshAccessToken(user)
+	refreshToken, err := s.refreshAccessToken(user)
 	if err != nil {
 		return param.LoginResponse{}, fmt.Errorf("unexpected error : %w", err)
 	}

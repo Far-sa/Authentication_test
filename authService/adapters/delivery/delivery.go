@@ -1,8 +1,8 @@
 package delivery
 
 import (
-	"auth-svc/internal/authenticate/param"
-	"auth-svc/internal/authenticate/ports"
+	"auth-svc/internal/param"
+	"auth-svc/internal/ports"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -48,7 +48,7 @@ func (h *authHandler) RevokeTokenHandler(c echo.Context) error {
 	tokenID := c.QueryParam("token_id")
 
 	// Call token service to revoke token
-	if err := h.authService.AddRevokeToken(tokenID); err != nil {
+	if err := h.authService.RevokeToken(tokenID); err != nil {
 		// Handle error
 		return c.String(http.StatusInternalServerError, "Failed to revoke token")
 	}
@@ -56,29 +56,3 @@ func (h *authHandler) RevokeTokenHandler(c echo.Context) error {
 	// Respond with success
 	return c.String(http.StatusOK, "Token revoked successfully")
 }
-
-//!--- main
-// func main() {
-// 	// Initialize Echo instance
-// 	e := echo.New()
-
-// 	// Initialize token repository
-// 	tokenRepo := auth.NewTokenRepository()
-
-// 	// Initialize token service with repository
-// 	authService := auth.NewTokenService(tokenRepo)
-
-// 	// Initialize token handler with service
-// 	tokenHandler := auth.NewTokenHandler(authService)
-
-// 	// Middleware
-// 	e.Use(middleware.Logger())
-// 	e.Use(middleware.Recover())
-
-// 	// Routes
-// e.POST("/login", authHandler.UserLoginHandler)
-// 	e.GET("/revoke-token", tokenHandler.RevokeTokenHandler)
-
-// 	// Start server
-// 	e.Logger.Fatal(e.Start(":8080"))
-// }

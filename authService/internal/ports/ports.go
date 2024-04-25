@@ -1,19 +1,16 @@
 package ports
 
 import (
-	"auth-svc/internal/authenticate/param"
+	"auth-svc/internal/param"
 	"context"
 )
 
 type AuthRepository interface {
 	AddRevokedToken(tokenID string) error
 	IsTokenRevoked(tokenID string) bool
-	SaveTokens()
 }
 
 type AuthService interface {
-	AddRevokeToken(tokenID string) error
-	ValidateToken(token string) bool
-
+	RevokeToken(ctx context.Context, tokenID string) error
 	Login(ctx context.Context, user param.LoginRequest) (param.LoginResponse, error)
 }
