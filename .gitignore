@@ -54,7 +54,7 @@ go.work
 userService/config/
 userService/data/
 userService/*.env
-userService/*.config
+userService/*.yaml
 
 deployment/
 /deployment
