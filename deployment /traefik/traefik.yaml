@@ -1,0 +1,97 @@
+# traefik.yaml
+
+# Enable API dashboard
+# API (assuming all microservices use the same HTTP protocol)
+api:
+  dashboard: true
+
+# Configure entry points
+# EntryPoints (defines how users access services
+entryPoints:
+  web:
+    address: ":80"
+
+# Define providers for dynamic configuration
+# providers:
+#   file:
+#     filename: "/etc/traefik/dynamic_conf.yaml"  # Dynamic configuration file
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+
+# Enable logging
+# log:
+#   level: INFO
+
+# # Enable metrics
+# metrics:
+#   prometheus:
+#     entryPoint: web
+    
+middlewares:
+  jwt-auth:
+    jwt:
+      issuer: "https://issuer.example.com"
+      header: "Authorization"
+      payload: "{\"iss\":\"https://auth.example.com\",\"exp\":3600}"
+
+      # audience:
+      #   - "user-service"
+      #   - "authentication-service"
+
+http:
+  routers:
+    auth-router:
+      rule: "Host(`user.example.com`) && Path(`/login`)"  # Define the rule to match the login endpoint
+      service: "auth-service"                             # Route requests to the authentication service
+      middlewares:
+        - "jwt-auth"
+
+    user-service-router:
+      rule: "Host(`user.example.com`) && Path(`/profile/edit`)"
+      service: "user-service"
+      middlewares:
+        - "jwt-auth"
+
+    order-router:
+      rule: "Host(`order.example.com`)"  # Define rules for routing to the order service
+      service: "order-service"
+
+    payment-router:
+      rule: "Host(`payment.example.com`) && Path(`/checkout`)"  # Define rules for routing to the payment service
+      service: "payment-service"
+      middlewares:
+        - "jwt-auth"
+
+
+  services:
+    auth-service:
+      loadBalancer:
+        servers:
+          - url: "http://auth-service:8082" 
+
+    user-service:
+      loadBalancer:
+        servers:
+          - url: "http://user-service:8081"
+    
+    order-service:
+      loadBalancer:
+        servers:
+          - url: "http://order-service:8083"
+
+    payment-service:
+      loadBalancer:
+        servers:
+          - url: "http://payment-service:8084" 
+
+
+  # Apply jwt-auth middleware globally
+  middleware:
+    global:
+      chain:
+        middlewares:
+          - "jwt-auth"
+

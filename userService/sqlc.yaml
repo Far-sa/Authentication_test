@@ -1,0 +1,46 @@
+# version: "2"
+# cloud:
+#     organization: ""
+#     project: ""
+#     hostname: ""
+# sql: []
+# overrides:
+#     go: null
+# plugins: []
+# rules: []
+# options: {}
+
+# version: "2"
+# packages:
+#   - name: "db"
+#     path: "./infrastructure/db/sqlc"
+#     queries: "./infrastructure/db/query"
+#     schema: "./infrastructure/db/migrations"
+#     engine: "postgres"
+#     emit_json_tags: true 
+#     emit_prepared_gueries: false
+#     emit_interface: false
+#     emit_exact_table_names: false
+
+
+# version: "2"
+# packages:
+#   - name: db
+#     path: ./infrastructure/db/sqlc
+#     queries:
+#       - ./infrastructure/db/query/*.sql
+#     schema:
+#       - ./infrastructure/db/migrations
+#     engine: postgresql
+
+# version: "2"
+# config:
+#   name: "db"
+#   path: ."/infrastructure/db/sqlc"
+
+#   queries:
+#     - "./infrastructure/db/query/*.sql"
+
+#   schema:
+#     - "./infrastructure/db/query/*.sql"
+#   engine: "postgresql"

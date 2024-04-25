@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # Traefik service
+  traefik:
+    image: traefik:v2.5
+    command:
+      - "--api.insecure=true"  # Enable insecure API dashboard (for demo purposes)
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--providers.docker.exposedbydefault=false"
+      - "--configFile=/etc/traefik/traefik.yaml"  # Specify the path to the Traefik configuration file
+      - "--providers.file.filename=/etc/traefik/dynamic_conf.yaml"  # Dynamic configuration file
+      - "--log.level=INFO"  # Log level
+
+    ports:
+      - "80:80"  # Expose port 80 for HTTP traffic
+      - "8080:8080"  # Expose port 8080 for Traefik API dashboard
+    volumes:
+      - ./traefik:/etc/traefik  # Mount Traefik configuration
+      - "./traefik.yaml:/etc/traefik/traefik.yaml"  # Mount the Traefik configuration file
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+
+    networks:
+      - my_network  # Attach to custom network
+
+# networks:
+#   traefik-net:
+#     external: true
+
+  # Example Go service
+  user-service:
+    build:
+      context: ./user-service
+    ports:
+      - "8081:8081"  # Expose port 8081 for user service
+    networks:
+      - my_network  # Attach to custom network
+    labels:
+      - "traefik.enable=true"  # Enable Traefik routing
+      - "traefik.http.routers.user-service.rule=Host(`user-service.example.com`)"  # Routing rule for user service
+      - "traefik.http.middlewares.jwt-auth.forwardauth.address=http://example.com:8080/auth"
+
+      - "traefik.http.routers.user-service.rule=Host(`user.example.com`) && Path(`/login`)"
+      - "traefik.http.routers.user-service.middlewares=auth"
+      - "traefik.http.middlewares.auth.jwt=true"
+      - "traefik.http.middlewares.auth.jwt.header=Authorization"
+      - "traefik.http.middlewares.auth.jwt.payload={"iss":"https://issuer.example.com","aud":["user-service"]}"
+
+      # - "traefik.http.routers.user-service.rule=Host(`user.example.com`) && Path(`/login`)"
+      # - "traefik.http.routers.user-service.middlewares=auth"
+      # - "traefik.http.middlewares.auth.jwt=true"
+      # - "traefik.http.middlewares.auth.jwt.issuer=https://oauth2.example.com"
+      # - "traefik.http.middlewares.auth.jwt.audience=user-service"
+
+
+  # Example Go service
+  order-service:
+    build:
+      context: ./order-service
+    ports:
+      - "8082:8082"  # Expose port 8082 for order service
+    networks:
+      - my_network  # Attach to custom network
+    labels:
+      - "traefik.enable=true"  # Enable Traefik routing
+      - "traefik.http.routers.order-service.rule=Host(`order-service.example.com`)" 
+      - "traefik.http.middlewares.jwt-auth.forwardauth.address=http://auth-service:8080/auth"
+ # Routing rule for order service
+
+
+  # Swagger UI service
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./openapi.yaml:/usr/share/nginx/html/openapi.yaml
+
+volumes:
+  pg_data:  # Docker volume for PostgreSQL data
+
+networks:
+  my_network:  # Custom Docker network

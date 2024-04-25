@@ -1,0 +1,79 @@
+# dynamic_conf.yaml
+
+http:
+  routers:
+    user-service-router:
+      rule: "Host(`user-service.example.com`)"
+      service: "user-service"
+      middlewares:
+        - "auth-middleware"
+      priority: 1
+
+    order-service-router:
+      rule: "Host(`order-service.example.com`)"
+      service: "order-service"
+      middlewares:
+        - "auth-middleware"
+      priority: 1
+
+  # Services (routing to microservices)
+  services:
+    user-service:
+      loadBalancer:
+        servers:
+          - url: "http://user-service:8080"
+
+    order-service:
+      loadBalancer:
+        servers:
+          - url: "http://order-service:8080"
+
+  middlewares:
+    auth-middleware:
+      basicAuth:
+        users:
+          - "admin:$apr1$ZFB..HBJ$U2r6oM1NUurZ6QrHjJ1Mj0"  # Example basic auth credentials
+
+
+
+###
+# Traefik configuration
+# entryPoints:
+#   web:
+#     address: ":80"
+#   websecure:
+#     address: ":443"
+
+# http:
+#   routers:
+#     service1-router:
+#       rule: "Host(`service1.example.com`)"
+#       service: "service1"
+#       middlewares:
+#         - "authMiddleware"
+#       tls: {}
+#     service2-router:
+#       rule: "Host(`service2.example.com`)"
+#       service: "service2"
+#       middlewares:
+#         - "authMiddleware"
+#       tls: {}
+
+#   middlewares:
+#     authMiddleware:
+#       rbac:
+#         policies:
+#           role1:
+#             policy: "deny"
+#             principals:
+#               users: ["user1"]
+#             resources:
+#               services: ["service1"]
+#               methods: ["GET"]
+#           role2:
+#             policy: "allow"
+#             principals:
+#               users: ["user2"]
+#             resources:
+#               services: ["service2"]
+#               methods: ["GET"]

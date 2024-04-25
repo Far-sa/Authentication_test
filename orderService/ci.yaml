@@ -1,0 +1,43 @@
+name: Order Service CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Build User Service Docker image
+        run: docker build -t user-service .
+
+  test:
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run User Service tests
+        run: |
+          # Command to run tests
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Deploy User Service to testing environment
+        run: |
+          # Command to deploy to testing environment

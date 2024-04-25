@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package user;
+
+import "google/protobuf/timestamp.proto";
+
+// option go_package = "./user";
+option go_package = "ports/protobuf/grpc/user";
+
+
+
+message User {
+  uint64 id = 1;
+  string phone_number = 2;
+  string email = 3;
+  string password = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message UserCreatedEvent {
+  uint64 id = 1 [json_name = "user-id"];
+  string email = 2;
+  // Add other user fields as needed
+}
+
+message CreateUserRequest { 
+  string email = 1 [json_name = "email"]; 
+  string phone_number = 2 [json_name = "phone_number"];
+  string password = 3 [json_name = "password"]; 
+}
+
+message CreateUserResponse { 
+  bool success = 1;
+  string email=2 [json_name = "email"];
+}
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+}

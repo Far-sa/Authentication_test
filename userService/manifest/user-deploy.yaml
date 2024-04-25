@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user
+  labels:
+    app: user
+
+spec:
+  selector:
+    mathLabels:
+      app: user
+  strategy:
+    type: RollingUpdate
+    rollingupdate:
+      maxsurge:3
+  replicas: 2  
+  template:
+    metadata:
+      labels:
+        app: user
+    spec:
+      containers:
+        - name: user
+          image: gcr.io/google
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: user-configmap
+            - secretRef:
+                name: user-secret
