@@ -1,39 +1,45 @@
-package authenticate
+package delivery
 
 import (
+	"auth-svc/internal/authenticate/param"
+	"auth-svc/internal/authenticate/ports"
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 )
 
 // TokenHandler handles token-related HTTP requests
 type authHandler struct {
-	authService authService
+	authService ports.AuthService
 }
 
 // NewTokenHandler creates a new TokenHandler with the given authService
-func NewAuthHandler(authService authService) *authHandler {
-	return &authHandler{authService}
+func NewAuthHandler(authService ports.AuthService) authHandler {
+	return authHandler{authService}
 }
 
-func (h *authHandler) GenerateTokenHandler(c echo.Context) error {
-	// Extract user ID and roles from request
-	userID := c.FormValue("userID")
-	roles := c.FormValue("roles") // Assuming roles are provided as a comma-separated string
+func (h authHandler) UserLoginHandler(c echo.Context) error {
 
-	// Convert roles string to slice
-	roleSlice := strings.Split(roles, ",")
-
-	// Generate token
-	token, err := h.authService.GenerateToken(userID, roleSlice)
-	if err != nil {
-		// Handle error
-		return c.String(http.StatusInternalServerError, "Failed to generate token")
+	var req param.LoginRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 
-	// Respond with generated token
-	return c.String(http.StatusOK, token)
+	//* validate Login
+	// if _, err := h.userValidator.ValidateLoginRequest(req); err != nil {
+	// 	msg, code := httpmsg.Error(err)
+	// 	return c.JSON(code, echo.Map{
+	// 		"messsage": msg,
+	// 		"errors":   err,
+	// 	})
+	// }
+
+	resp, err := h.authService.Login(c.Request().Context(), req)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, resp)
 }
 
 // RevokeTokenHandler handles requests to revoke a token
@@ -42,7 +48,7 @@ func (h *authHandler) RevokeTokenHandler(c echo.Context) error {
 	tokenID := c.QueryParam("token_id")
 
 	// Call token service to revoke token
-	if err := h.authService.AddRevokedToken(tokenID); err != nil {
+	if err := h.authService.AddRevokeToken(tokenID); err != nil {
 		// Handle error
 		return c.String(http.StatusInternalServerError, "Failed to revoke token")
 	}
@@ -70,7 +76,7 @@ func (h *authHandler) RevokeTokenHandler(c echo.Context) error {
 // 	e.Use(middleware.Recover())
 
 // 	// Routes
-// e.POST("/generate-token", authHandler.GenerateTokenHandler)
+// e.POST("/login", authHandler.UserLoginHandler)
 // 	e.GET("/revoke-token", tokenHandler.RevokeTokenHandler)
 
 // 	// Start server
