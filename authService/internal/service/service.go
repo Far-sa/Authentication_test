@@ -61,6 +61,7 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 	}
 
 	//TODO: publish token and save to DB
+	s.authRepo.StoreToken()
 
 	return param.LoginResponse{
 		User:   param.UserInfo{ID: user.ID, Email: user.Email},
