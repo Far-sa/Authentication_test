@@ -61,3 +61,6 @@ deployment/
 /deployment
 
 authService/*.env
+
+./userService/Makefile
+/authService/Makefile
