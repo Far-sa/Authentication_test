@@ -23,6 +23,7 @@ type AuthService interface {
 }
 
 type EventPublisher interface {
+	DeclareExchange(name, kind string) error
 	CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error)
 	CreateBinding(name, binding, exchange string) error
 	Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error)

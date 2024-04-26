@@ -5,12 +5,14 @@ import (
 	"auth-svc/internal/param"
 	"auth-svc/internal/ports"
 	"context"
+	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // type Config struct {
@@ -34,6 +36,13 @@ type authService struct {
 	event    ports.EventPublisher
 }
 
+// User represents the user data received from the message
+type User struct {
+	ID       int    `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 // NewTokenHandler creates a new TokenHandler with the given authService
 func NewAuthService(authRepo ports.AuthRepository, event ports.EventPublisher) authService {
 	return authService{authRepo: authRepo}
@@ -41,54 +50,124 @@ func NewAuthService(authRepo ports.AuthRepository, event ports.EventPublisher) a
 
 func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.LoginResponse, error) {
 
-	//TODO: get user info from rabbitmq
-	queue, _ := s.event.CreateQueue()
-	_ := s.event.CreateBinding()
-	messages, _ := s.event.Consume()
-
-	if user.Password != getMD5Hash(req.Password) {
-		return param.LoginResponse{}, fmt.Errorf("username/ password incorrect")
+	// Hash the password from the incoming request
+	hashedPassword, err := HashPassword(user.Password)
+	if err != nil {
+		return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	forever := make(chan bool)
+	// Consume user info messages from RabbitMQ
+	go s.consumeUserMessages()
 
-	go func() {
-		for d := range messages {
-			log.Printf("Received a message: %s", d.Body)
-			// Here you can process the received user information and generate tokens
+	// Wait for user data to be available before proceeding
+	select {
+	case <-time.After(5 * time.Second): // Timeout after 5 seconds (adjust as needed)
+		return param.LoginResponse{}, fmt.Errorf("timeout waiting for user data")
+	case userData := <-userMsgReceived: // Receive user data from the channel
+		// Proceed with user data
+		fmt.Printf("Received user data in Login function: %+v\n", userData)
+
+		// Validate user credentials
+		if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
+			return param.LoginResponse{}, fmt.Errorf("username/password incorrect")
 		}
+
+		// Create tokens
+		accessToken, err := s.createAccessToken(userData)
+		if err != nil {
+			return param.LoginResponse{}, fmt.Errorf("failed to create access token: %w", err)
+		}
+
+		refreshToken, err := s.refreshAccessToken(userData)
+		if err != nil {
+			return param.LoginResponse{}, fmt.Errorf("failed to refresh access token: %w", err)
+		}
+
+		// Publish token and save to DB
+		// TODO: Implement token publishing and storage
+
+		// Return login response with tokens
+		return param.LoginResponse{
+			User:   param.UserInfo{ID: userData.ID, Email: userData.Email},
+			Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
+		}, nil
+	}
+}
+
+func (s authService) consumeUserMessages() {
+	// Declare exchange (if needed)
+	if err := s.event.DeclareExchange("user_data_exchange", "topic"); err != nil {
+		fmt.Println("declare exchange error:", err)
+		// Handle the error appropriately
+		return
+	}
+
+	// Create queue
+	queue, err := s.event.CreateQueue("auth_queue", true, false)
+	if err != nil {
+		fmt.Println("create queue error:", err)
+		// Handle the error appropriately
+		return
+	}
+
+	// Create binding
+	if err := s.event.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
+		fmt.Println("binding error:", err)
+		// Handle the error appropriately
+		return
+	}
+
+	// Consume messages
+	msgs, err := s.event.Consume(queue.Name, "auth_consumer", false)
+	if err != nil {
+		fmt.Println("consume error:", err)
+		// Handle the error appropriately
+		return
+	}
+
+	// Process messages
+	for message := range msgs {
+		go s.processUserMessage(message)
+	}
+}
+
+// ? just for signal
+// var userMsgReceived = make(chan struct{})
+// TODO: move global channel to writer
+var userMsgReceived = make(chan User)
+
+func (s authService) processUserMessage(message amqp.Delivery) {
+	// Unmarshal the message body into the user struct
+	var user User
+	if err := json.Unmarshal(message.Body, &user); err != nil {
+		fmt.Println("failed to unmarshal message:", err)
+		// Handle the error appropriately (e.g., logging, error reporting)
+		// Acknowledge or reject the message, depending on your requirements
+		message.Ack(false)
+		return
+	}
+
+	// Process the user data
+	fmt.Printf("Received user data: %+v\n", user)
+
+	// Signal that user data is available
+	go func() {
+		userMsgReceived <- user
+		//userMsgReceived <- struct{}{}
 	}()
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
-	<-forever
-
-	// create tokens
-	accessToken, err := s.createAccessToken(user)
-	if err != nil {
-		return param.LoginResponse{}, fmt.Errorf("unexpected error : %w", err)
-	}
-
-	refreshToken, err := s.refreshAccessToken(user)
-	if err != nil {
-		return param.LoginResponse{}, fmt.Errorf("unexpected error : %w", err)
-	}
-
-	//TODO: publish token and save to DB
-	s.authRepo.StoreToken()
-
-	return param.LoginResponse{
-		User:   param.UserInfo{ID: user.ID, Email: user.Email},
-		Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
-	}, nil
+	// Acknowledge the message to RabbitMQ to indicate successful processing
+	message.Ack(false)
 }
 
-func (s authService) AddRevokedToken(tokenID string) error {
-	panic("")
+// ! helper function
+func HashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
 }
-
-// func (s authService) IsRevokedToken(tokenID string) error {
-// 	panic("")
-// }
 
 func (s authService) createAccessToken(user entity.User) (string, error) {
 	return s.createToken(user.ID, AccessTokenSubject, AccessTokenExpirationDuration)
@@ -152,6 +231,14 @@ func (s authService) createToken(userID uint, subject string, expiresDuration ti
 
 	return tokenStr, nil
 }
+
+// func (s authService) AddRevokedToken(tokenID string) error {
+// 	panic("")
+// }
+
+// func (s authService) IsRevokedToken(tokenID string) error {
+// 	panic("")
+// }
 
 // ! Middleware for token validation in Traefik
 // func TokenValidationMiddleware(next http.Handler, authService authService) http.Handler {
