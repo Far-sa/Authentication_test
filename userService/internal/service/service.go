@@ -2,7 +2,9 @@ package userService
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 	"user-svc/internal/entity"
 	"user-svc/internal/service/param"
@@ -53,29 +55,39 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 		return param.RegisterResponse{}, fmt.Errorf("error creating user: %v", err)
 	}
 
-	//* Create user event payload as binary
-	eventPayload := []byte(MapStringToByte(createdUser.Email))
+	//? publish event
+	if err := us.eventPublisher.DeclareExchange("user_data_exchange", "topic"); err != nil {
+		fmt.Println("declare exchange create error", err)
+		// Handle error appropriately
+	}
 
-	//! Publish user created event
-	queue, err := us.eventPublisher.CreateQueue("", true, true)
+	// Declare Queue
+	queue, err := us.eventPublisher.CreateQueue("auth_queue", true, false)
 	if err != nil {
-		fmt.Println("queue create error")
+		fmt.Println("create queue error:", err)
+		// Handle the error appropriately
 	}
 
-	if err := us.eventPublisher.CreateBinding(queue.Name, queue.Name, "users_events"); err != nil {
-		fmt.Println("binding error")
+	if err := us.eventPublisher.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
+		fmt.Println("binding error", err)
+		// Handle error appropriately
 	}
 
-	err = us.eventPublisher.Publish(ctx, "users_event", "", amqp091.Publishing{
+	body, err := json.Marshal(createdUser)
+	if err != nil {
+		log.Fatalf("Failed to serialize user data: %v", err)
+	}
+
+	err = us.eventPublisher.Publish(ctx, "user_data_exchange", "auth_routing_key", amqp091.Publishing{
 		ContentType:   "text/plain",
 		DeliveryMode:  amqp091.Persistent,
-		Body:          eventPayload,
+		Body:          body,
 		CorrelationId: "",
 	})
 
 	if err != nil {
-		us.logger.Error("Failed to publish user created event", zap.Error(err))
-		return param.RegisterResponse{}, fmt.Errorf("failed to publish user created event: %w", err)
+		us.logger.Error("Failed to publish user credential to auth-service", zap.Error(err))
+		return param.RegisterResponse{}, fmt.Errorf("failed to publish user auth-service: %w", err)
 	}
 
 	us.logger.Info("User created successfully", zap.Any("user", createdUser))

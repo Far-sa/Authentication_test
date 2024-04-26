@@ -53,6 +53,7 @@ go.work
 
 userService/config/
 userService/data/
+authService/data/
 userService/*.env
 userService/*.yaml
 

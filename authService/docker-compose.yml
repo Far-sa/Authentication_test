@@ -11,10 +11,23 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./data/pgdata:/var/lib/postgresql/data
 
-volumes:
-  pgdata:
+  
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmqApp
+    ports:
+      - "5672:5672"  # RabbitMQ default port
+      - "15672:15672"  # RabbitMQ management plugin
+    environment:
+      RABBITMQ_DEFAULT_USER: puppet
+      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_HOST: localhost
+      RABBITMQ_VHOST: "users"
+
+    volumes:
+      - ./data/rabbitmq-data:/var/lib/rabbitmq 
 
 
 

@@ -15,6 +15,11 @@ func NewMockEventPublisher() *MockEventPublisher {
 	return &MockEventPublisher{}
 }
 
+func (m *MockEventPublisher) DeclareExchange(name, kind string) error {
+	args := m.Called(name, kind)
+	return args.Error(0)
+}
+
 func (m *MockEventPublisher) Publish(ctx context.Context, exchange, routingKey string, options amqp.Publishing) error {
 	args := m.Called("Publish", ctx, exchange, routingKey, options)
 	return args.Error(1)

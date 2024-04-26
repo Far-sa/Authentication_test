@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"user-svc/adapters/config"
-	grpcserver "user-svc/adapters/delivery/grpcServer"
+	"user-svc/adapters/delivery/httpServer"
 	"user-svc/adapters/logger"
 	"user-svc/adapters/messaging"
 	"user-svc/adapters/metrics"
@@ -37,12 +37,12 @@ func main() {
 	// ozzoValidator := validator.New(userRepository)
 
 	//* Initialize grpc client
-	grpcHandler := grpcserver.New(userService)
-	grpcHandler.Start()
+	// grpcHandler := grpcserver.New(userService)
+	// grpcHandler.Start()
 
 	//* http handler
-	// userHandler := httpServer.New(configAdapter, userService, zapLogger, prometheusAdapter)
+	userHandler := httpServer.New(configAdapter, userService, zapLogger, prometheusAdapter)
 
-	// userHandler.Serve()
+	userHandler.Serve()
 
 }
