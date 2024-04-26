@@ -1,4 +1,3 @@
-# transaction-service/Dockerfile
 FROM golang:1-alpine3.15 As builder
 
 WORKDIR /app
