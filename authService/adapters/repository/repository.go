@@ -12,7 +12,8 @@ type postgresDB struct {
 }
 
 func NewAuthRepository(db *sql.DB) postgresDB {
-	db, err := sql.Open("postgres", "postgresql://user:password@localhost/database_name?sslmode=disable")
+	//TODO: for test purpose only-- add to config
+	db, err := sql.Open("postgres", "postgresql://root:password@localhost:5432/authDB?sslmode=disable")
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
@@ -33,7 +34,7 @@ func (db postgresDB) StoreToken(userID int, token string, expiration time.Time) 
 func (db postgresDB) RetrieveToken(userID int) (*entity.Token, error) {
 	var t entity.Token
 	row := db.db.QueryRow("SELECT id, user_id, token, expiration FROM jwt_tokens WHERE user_id = $1", userID)
-	err := row.Scan(&t.ID, &t.UserID, &t.Token, &t.Expiration)
+	err := row.Scan(&t.ID, &t.UserID, &t.TokenValue, &t.Expiration)
 	if err != nil {
 		return nil, err
 	}
