@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"log"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 type postgresDB struct {

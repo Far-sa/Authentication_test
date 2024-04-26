@@ -1,7 +1,6 @@
 package service
 
 import (
-	"auth-svc/internal/entity"
 	"auth-svc/internal/param"
 	"auth-svc/internal/ports"
 	"context"
@@ -10,9 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"golang.org/x/crypto/bcrypt"
+	//"github.com/dgrijalva/jwt-go"
 )
 
 // type Config struct {
@@ -38,7 +38,7 @@ type authService struct {
 
 // User represents the user data received from the message
 type User struct {
-	ID       int    `json:"id"`
+	ID       uint   `json:"id"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
@@ -83,8 +83,10 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 			return param.LoginResponse{}, fmt.Errorf("failed to refresh access token: %w", err)
 		}
 
-		// Publish token and save to DB
-		// TODO: Implement token publishing and storage
+		if err := s.authRepo.StoreToken(int(userData.ID), accessToken,
+			time.Now().Add(72*time.Second)); err != nil {
+			fmt.Println("Error store token", err)
+		}
 
 		// Return login response with tokens
 		return param.LoginResponse{
@@ -169,11 +171,11 @@ func HashPassword(password string) (string, error) {
 	return string(hashedPassword), nil
 }
 
-func (s authService) createAccessToken(user entity.User) (string, error) {
+func (s authService) createAccessToken(user User) (string, error) {
 	return s.createToken(user.ID, AccessTokenSubject, AccessTokenExpirationDuration)
 }
 
-func (s authService) refreshAccessToken(user entity.User) (string, error) {
+func (s authService) refreshAccessToken(user User) (string, error) {
 	return s.createToken(user.ID, RefreshTokenSubject, RefreshTokenExpirationDuration)
 }
 
@@ -198,6 +200,7 @@ func (s authService) VerifyToken(bearerToken string) (*Claims, error) {
 	}
 }
 
+// "github.com/golang-jwt/jwt/v4"
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID uint `json:"user_id"`
@@ -208,10 +211,6 @@ func (c Claims) Valid() error {
 }
 
 func (s authService) createToken(userID uint, subject string, expiresDuration time.Duration) (string, error) {
-	// create a signer for rsa 256
-	//t := jwt.New(jwt.GetSigningMethod("RS256"))
-	// TODO replace with rsa 256 RS256
-
 	// set our claims
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{

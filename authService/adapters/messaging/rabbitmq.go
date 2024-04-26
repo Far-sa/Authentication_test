@@ -38,8 +38,8 @@ func (rc RabbitClient) Close() error {
 	return rc.ch.Close()
 }
 
-func (rc RabbitClient) Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {
-	return rc.ch.Consume(queue, consumer, autoAck, false, false, false, nil)
+func (rc RabbitClient) DeclareExchange(name, kind string) error {
+	return rc.ch.ExchangeDeclare(name, kind, true, false, false, false, nil)
 }
 
 func (rc RabbitClient) CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error) {
@@ -53,6 +53,10 @@ func (rc RabbitClient) CreateQueue(queueName string, durable, autodelete bool) (
 // * for bindig echange to queue
 func (rc RabbitClient) CreateBinding(name, binding, exchange string) error {
 	return rc.ch.QueueBind(name, binding, exchange, false, nil)
+}
+
+func (rc RabbitClient) Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {
+	return rc.ch.Consume(queue, consumer, autoAck, false, false, false, nil)
 }
 
 func (rc RabbitClient) Send(

@@ -19,21 +19,18 @@ func main() {
 
 	authRepo := repository.NewAuthRepository()
 
-	publisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672", "users")
+	eventPublisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672", "users")
 	if err != nil {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
 	}
-	authSvc := service.NewAuthService(authRepo, publisher)
+	authSvc := service.NewAuthService(authRepo, eventPublisher)
 
 	authHandler := delivery.NewAuthHandler(authSvc)
-
-	// Start server
-	e.Logger.Fatal(e.Start(":8000"))
 
 	e.POST("/login", authHandler.Login)
 	// e.GET("/revoke-token", authHandler.RevokeToken)
 
 	// 	// Start server
-	e.Logger.Fatal(e.Start(":8080"))
+	e.Logger.Fatal(e.Start(":5001"))
 
 }
