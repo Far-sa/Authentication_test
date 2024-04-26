@@ -9,6 +9,7 @@ import (
 	"user-svc/ports"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -52,13 +53,26 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 		return param.RegisterResponse{}, fmt.Errorf("error creating user: %v", err)
 	}
 
-	// TODO generate token
-
 	//* Create user event payload as binary
 	eventPayload := []byte(MapStringToByte(createdUser.Email))
 
 	//! Publish user created event
-	err = us.eventPublisher.PublishUserRegisteredEvent(ctx, eventPayload)
+	queue, err := us.eventPublisher.CreateQueue("", true, true)
+	if err != nil {
+		fmt.Println("queue create error")
+	}
+
+	if err := us.eventPublisher.CreateBinding(queue.Name, queue.Name, "users_events"); err != nil {
+		fmt.Println("binding error")
+	}
+
+	err = us.eventPublisher.Publish(ctx, "users_event", "", amqp091.Publishing{
+		ContentType:   "text/plain",
+		DeliveryMode:  amqp091.Persistent,
+		Body:          eventPayload,
+		CorrelationId: "",
+	})
+
 	if err != nil {
 		us.logger.Error("Failed to publish user created event", zap.Error(err))
 		return param.RegisterResponse{}, fmt.Errorf("failed to publish user created event: %w", err)

@@ -11,7 +11,7 @@ type postgresDB struct {
 	db *sql.DB
 }
 
-func NewAuthRepository(db *sql.DB) postgresDB {
+func NewAuthRepository() postgresDB {
 	//TODO: for test purpose only-- add to config
 	db, err := sql.Open("postgres", "postgresql://root:password@localhost:5432/authDB?sslmode=disable")
 	if err != nil {
@@ -42,15 +42,13 @@ func (db postgresDB) RetrieveToken(userID int) (*entity.Token, error) {
 }
 
 // AddRevokedToken adds the token ID to the list of revoked tokens in the repository
-func (r postgresDB) AddRevokedToken(tokenID string) error {
-	// Implement logic to add token ID to the list of revoked tokens
-	return nil
-}
+// func (r postgresDB) AddRevokedToken(tokenID string) error {
+// 	// Implement logic to add token ID to the list of revoked tokens
+// 	return nil
+// }
 
 // IsTokenRevoked checks if the token ID is in the list of revoked tokens
-func (r postgresDB) IsTokenRevoked(tokenID string) bool {
-	// Implement logic to check if token ID is in the list of revoked tokens
-	return false
-}
-
-// TODO: implement save token
+// func (r postgresDB) IsTokenRevoked(tokenID string) bool {
+// 	// Implement logic to check if token ID is in the list of revoked tokens
+// 	return false
+// }

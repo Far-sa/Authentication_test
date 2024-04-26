@@ -10,11 +10,11 @@ import (
 )
 
 type AuthRepository interface {
-	AddRevokedToken(tokenID string) error
-	IsTokenRevoked(tokenID string) bool
+	// AddRevokedToken(tokenID string) error
+	// IsTokenRevoked(tokenID string) bool
 
 	StoreToken(userID int, token string, expiration time.Time) error
-	RetrieveToken(userID int) (entity.Token, error)
+	RetrieveToken(userID int) (*entity.Token, error)
 }
 
 type AuthService interface {
@@ -26,4 +26,6 @@ type EventPublisher interface {
 	CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error)
 	CreateBinding(name, binding, exchange string) error
 	Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error)
+	// PublishUser(userInfo *UserInfo) error
+
 }

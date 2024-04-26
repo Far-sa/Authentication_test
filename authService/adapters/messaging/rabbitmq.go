@@ -38,6 +38,10 @@ func (rc RabbitClient) Close() error {
 	return rc.ch.Close()
 }
 
+func (rc RabbitClient) Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {
+	return rc.ch.Consume(queue, consumer, autoAck, false, false, false, nil)
+}
+
 func (rc RabbitClient) CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error) {
 	q, err := rc.ch.QueueDeclare(queueName, durable, autodelete, false, false, nil)
 	if err != nil {
@@ -71,8 +75,4 @@ func (rc RabbitClient) Send(
 	log.Println(confirmation.Wait())
 	// confirmation.Wait()
 	return nil
-}
-
-func (rc RabbitClient) Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {
-	return rc.ch.Consume(queue, consumer, autoAck, false, false, false, nil)
 }

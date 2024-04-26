@@ -6,6 +6,7 @@ import (
 	"auth-svc/internal/ports"
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -48,6 +49,18 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 	if user.Password != getMD5Hash(req.Password) {
 		return param.LoginResponse{}, fmt.Errorf("username/ password incorrect")
 	}
+
+	forever := make(chan bool)
+
+	go func() {
+		for d := range messages {
+			log.Printf("Received a message: %s", d.Body)
+			// Here you can process the received user information and generate tokens
+		}
+	}()
+
+	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	<-forever
 
 	// create tokens
 	accessToken, err := s.createAccessToken(user)
