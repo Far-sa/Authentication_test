@@ -1,4 +1,4 @@
-FROM golang:1-alpine3.15 As builder
+FROM golang:1.19-alpine3.15 As builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 RUN go build -o /app/user-svc
 
 # Runtime Steps
-FROM alpine3.15
+FROM alpine
 
 COPY --from=builder /app/user-svc .
 

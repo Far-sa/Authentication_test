@@ -1,93 +1,3 @@
-# version: '3.8'
-
-# services:
-#   # Traefik service
-#   traefik:
-#     image: traefik:v2.5
-#     command:
-#       - "--api.insecure=true"  # Enable insecure API dashboard (for demo purposes)
-#       - "--providers.docker=true"
-#       - "--entrypoints.web.address=:80"
-#       - "--providers.docker.exposedbydefault=false"
-#       - "--configFile=/etc/traefik/traefik.yaml"  # Specify the path to the Traefik configuration file
-#       - "--providers.file.filename=/etc/traefik/dynamic_conf.yaml"  # Dynamic configuration file
-#       - "--log.level=INFO"  # Log level
-
-#     ports:
-#       - "80:80"  # Expose port 80 for HTTP traffic
-#       - "8080:8080"  # Expose port 8080 for Traefik API dashboard
-#     volumes:
-#       - ./traefik:/etc/traefik  # Mount Traefik configuration
-#       - "./traefik.yaml:/etc/traefik/traefik.yaml"  # Mount the Traefik configuration file
-#       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-
-
-#     networks:
-#       - my_network  # Attach to custom network
-
-# # networks:
-# #   traefik-net:
-# #     external: true
-
-#   # Example Go service
-#   user-service:
-#     build:
-#       context: ./user-service
-#     ports:
-#       - "8081:8081"  # Expose port 8081 for user service
-#     networks:
-#       - my_network  # Attach to custom network
-#     labels:
-#       - "traefik.enable=true"  # Enable Traefik routing
-#       - "traefik.http.routers.user-service.rule=Host(`user-service.example.com`)"  # Routing rule for user service
-#       - "traefik.http.middlewares.jwt-auth.forwardauth.address=http://localhost:5001/auth"
-
-#       - "traefik.http.routers.user-service.rule=Host(`user.example.com`) && Path(`/login`)"
-#       - "traefik.http.routers.user-service.middlewares=auth"
-#       - "traefik.http.middlewares.auth.jwt=true"
-#       - "traefik.http.middlewares.auth.jwt.header=Authorization"
-#       #- "traefik.http.middlewares.auth.jwt.payload={"iss":"https://issuer.example.com","aud":["user-service"]}"
-
-#       # - "traefik.http.routers.user-service.rule=Host(`user.example.com`) && Path(`/login`)"
-#       # - "traefik.http.routers.user-service.middlewares=auth"
-#       # - "traefik.http.middlewares.auth.jwt=true"
-#       # - "traefik.http.middlewares.auth.jwt.issuer=https://oauth2.example.com"
-#       # - "traefik.http.middlewares.auth.jwt.audience=user-service"
-
-
-#   # Example Go service
-#   auth-service:
-#     build:
-#       context: ./auth-service
-#     ports:
-#       - "8082:8082"  # Expose port 8082 for order service
-#     networks:
-#       - my_network  # Attach to custom network
-#     labels:
-#       - "traefik.enable=true"  # Enable Traefik routing
-#       - "traefik.http.routers.order-service.rule=Host(`order-service.example.com`)" 
-#       - "traefik.http.middlewares.jwt-auth.forwardauth.address=http://auth-service:8080/auth"
-#  # Routing rule for order service
-
-
-#   # Swagger UI service
-#   swagger-ui:
-#     image: swaggerapi/swagger-ui
-#     ports:
-#       - "8080:8080"
-#     volumes:
-#       - ./openapi.yaml:/usr/share/nginx/html/openapi.yaml
-
-# volumes:
-#   pg_data:  # Docker volume for PostgreSQL data
-
-# networks:
-#   my_network:  # Custom Docker network
-
-
-
-# docker-compose.yml
-
 version: '3.8'
 
 services:
@@ -155,8 +65,6 @@ services:
       - "traefik.http.services.service1.loadbalancer.server.port=5000"  # Define service1 port
       - "traefik.http.routers.user-service.tls=true"
 
-
-
   auth-service:
     container_name: "auth-service"
     build:
@@ -170,4 +78,134 @@ services:
       - "traefik.http.routers.auth-service.rule=Host(`auth-service.localhost`)"  # Define a router rule for service2
       - "traefik.http.services.service2.loadbalancer.server.port=5001" 
       - "traefik.http.routers.user-service.tls=true"
+
+############## Infrastructure auth-svc ################## 
+  postgresql:
+    image: postgres:12-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+
+  
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmqApp
+    ports:
+      - "5672:5672"  # RabbitMQ default port
+      - "15672:15672"  # RabbitMQ management plugin
+    environment:
+      RABBITMQ_DEFAULT_USER: puppet
+      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_HOST: localhost
+      RABBITMQ_VHOST: "users"
+
+    volumes:
+      - ./data/rabbitmq-data:/var/lib/rabbitmq
+
+############## Infrastructure user-svc  ################## 
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_app
+    restart: always
+    ports:
+      - "3306:3306"  # MySQL default port
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_HOST: ${MYSQL_HOST}
+    volumes:
+      - ./data/mysql/app_data:/var/lib/mysql
+      #- dbdata:/var/lib/mysql
+  
+  prometheus:
+    image: prom/prometheus
+    restart: always
+    volumes:
+      - ./data/metrics/prometheus:/etc/prometheus/
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - 9090:9090
+    links:
+      - cadvisor:cadvisor
+      - alertmanager:alertmanager
+    depends_on:
+      - cadvisor
+
+  node-exporter:
+    image: prom/node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - --collector.filesystem.ignored-mount-points
+      - '^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)'
+    ports:
+      - 9100:9100
+    restart: always
+    deploy:
+      mode: global
+
+  alertmanager:
+    image: prom/alertmanager
+    restart: always
+    ports:
+      - 9093:9093
+    volumes:
+      - ./data/metrics/alertmanager/:/etc/alertmanager/
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - 8080:8080
+    restart: always
+    deploy:
+      mode: global
+
+  grafana:
+    image: grafana/grafana
+    user: '472'
+    restart: always
+    environment:
+      GF_INSTALL_PLUGINS: 'grafana-clock-panel,grafana-simple-json-datasource'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./data/metrics/grafana/provisioning/:/etc/grafana/provisioning/
+    env_file:
+      - ./infrastructure/prometheus-grafana/grafana/config.monitoring
+    ports:
+      - 3000:3000
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
+
+networks:
+  reverse-proxy-public:
+    external: true
+
 

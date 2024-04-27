@@ -60,6 +60,7 @@ userService/*.yaml
 ./deployment
 deployment/
 /deployment
+/deployment/*.env
 
 authService/*.env
 
