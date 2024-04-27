@@ -1,40 +1,55 @@
-# dynamic_conf.yaml
-
 http:
   routers:
+    auth-router:
+      rule: "Host(`localhost`) && PathPrefix(`/login`)"
+      service: "auth-service"
+      middlewares:
+        - "jwt-auth"
+
     user-service-router:
-      rule: "Host(`user-service.example.com`)"
+      rule: "Host(`localhost`) && PathPrefix(`/profile`)"
       service: "user-service"
       middlewares:
-        - "auth-middleware"
-      priority: 1
+        - "jwt-auth"
 
-    order-service-router:
-      rule: "Host(`order-service.example.com`)"
+    order-router:
+      rule: "Host(`localhost`)"
       service: "order-service"
-      middlewares:
-        - "auth-middleware"
-      priority: 1
 
-  # Services (routing to microservices)
+    payment-router:
+      rule: "Host(`localhost`) && PathPrefix(`/checkout`)"
+      service: "payment-service"
+      middlewares:
+        - "jwt-auth"
+
   services:
+    auth-service:
+      loadBalancer:
+        servers:
+          - url: "http://auth-service:5001"
+
     user-service:
       loadBalancer:
         servers:
-          - url: "http://user-service:8080"
+          - url: "http://user-service:5000"
 
     order-service:
       loadBalancer:
         servers:
-          - url: "http://order-service:8080"
+          - url: "http://order-service:5003"
 
-  middlewares:
-    auth-middleware:
-      basicAuth:
-        users:
-          - "admin:$apr1$ZFB..HBJ$U2r6oM1NUurZ6QrHjJ1Mj0"  # Example basic auth credentials
+    payment-service:
+      loadBalancer:
+        servers:
+          - url: "http://payment-service:5004"
 
 
+middlewares:
+  jwt-auth:
+    jwt:
+      issuer: "https://issuer.example.com"
+      header: "Authorization"
+      payload: "{\"iss\":\"https://auth.example.com\",\"exp\":3600}"
 
 ###
 # Traefik configuration
