@@ -59,7 +59,7 @@ userService/*.yaml
 
 ./deployment
 deployment/
-/deployment
+/deployment/data/
 /deployment/*.env
 
 authService/*.env
