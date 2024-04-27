@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reverse-proxy
+  namespace: microservices
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reverse-proxy
+  template:
+    metadata:
+      labels:
+        app: reverse-proxy
+    spec:
+      containers:
+        - name: traefik
+          image: traefik:v2.5
+          ports:
+            - containerPort: 80
+            - containerPort: 8080
+            - containerPort: 443
+          volumeMounts:
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+            - name: traefik-config
+              mountPath: /etc/traefik/dynamic/traefik.yml
+            - name: certs
+              mountPath: /etc/certs
+          command:
+            - "/traefik"
+            - "--api.insecure=true"
+            - "--providers.docker=true"
+            - "--providers.docker.exposedByDefault=false"
+            - "--entrypoints.web.address=:80"
+            - "--entrypoints.websecure.address=:443"
+            - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+            - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      volumes:
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+        - name: traefik-config
+          hostPath:
+            path: /path/to/your/traefik.yml
+        - name: certs
+          hostPath:
+            path: /path/to/your/certs
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-config
+  namespace: microservices
+data:
+  traefik.yml: |
+    # Traefik configuration YAML here
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      containers:
+        - name: traefik
+          image: traefik:v2.5
+          args:
+            - "--api.insecure=true"
+            - "--providers.kubernetesingress=true"
+            # Other Traefik configuration
+          ports:
+            - containerPort: 80
+            - containerPort: 443

@@ -56,7 +56,7 @@ services:
     # build:
     #   context: ./user-service
     ports:
-      - "5000:8082"  # Expose port 8082 for order service
+      - "8082:5000"  # Expose port 8082 for order service
     networks:
       - microservices_network
     depends_on:
@@ -75,7 +75,7 @@ services:
     # build:
     #   context: ./auth-service
     ports:
-      - "5001:8082"  # Expose port 8082 for order service
+      - "8082:5001"  # Expose port 8082 for order service
     networks:
       - microservices_network
     depends_on:
