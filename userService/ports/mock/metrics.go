@@ -1,7 +1,7 @@
 package mocks
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
+	//"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -13,10 +13,10 @@ func NewMockGoroutineMetrics() *MockGoroutineMetrics {
 	return &MockGoroutineMetrics{}
 }
 
-func (m *MockGoroutineMetrics) RegisterGoroutineGauge() prometheus.Gauge {
-	args := m.Called()
-	return args.Get(0).(prometheus.Gauge)
-}
+// func (m *MockGoroutineMetrics) RegisterGoroutineGauge() prometheus.Gauge {
+// 	args := m.Called()
+// 	return args.Get(0).(prometheus.Gauge)
+// }
 
 func (m *MockGoroutineMetrics) UpdateGoroutineCount() {
 	m.Called()
@@ -31,15 +31,15 @@ func NewMockHTTPMetrics() *MockHTTPMetrics {
 	return &MockHTTPMetrics{}
 }
 
-func (m *MockHTTPMetrics) RegisterHTTPDurationHistogram() *prometheus.HistogramVec {
-	args := m.Called()
-	return args.Get(0).(*prometheus.HistogramVec)
-}
+// func (m *MockHTTPMetrics) RegisterHTTPDurationHistogram() *prometheus.HistogramVec {
+// 	args := m.Called()
+// 	return args.Get(0).(*prometheus.HistogramVec)
+// }
 
-func (m *MockHTTPMetrics) RegisterHTTPErrorCounter() *prometheus.CounterVec {
-	args := m.Called()
-	return args.Get(0).(*prometheus.CounterVec)
-}
+// func (m *MockHTTPMetrics) RegisterHTTPErrorCounter() *prometheus.CounterVec {
+// 	args := m.Called()
+// 	return args.Get(0).(*prometheus.CounterVec)
+// }
 
 // !---->
 type MockDatabaseMetrics struct {
@@ -50,15 +50,15 @@ func NewMockDatabaseMetrics() *MockDatabaseMetrics {
 	return &MockDatabaseMetrics{}
 }
 
-func (m *MockDatabaseMetrics) RegisterDatabaseDurationHistogram() *prometheus.HistogramVec {
-	args := m.Called()
-	return args.Get(0).(*prometheus.HistogramVec)
-}
+// func (m *MockDatabaseMetrics) RegisterDatabaseDurationHistogram() *prometheus.HistogramVec {
+// 	args := m.Called()
+// 	return args.Get(0).(*prometheus.HistogramVec)
+// }
 
-func (m *MockDatabaseMetrics) RegisterDatabaseErrorCounter() *prometheus.CounterVec {
-	args := m.Called()
-	return args.Get(0).(*prometheus.CounterVec)
-}
+// func (m *MockDatabaseMetrics) RegisterDatabaseErrorCounter() *prometheus.CounterVec {
+// 	args := m.Called()
+// 	return args.Get(0).(*prometheus.CounterVec)
+// }
 
 // MockDatabaseMetricsAdapter is a mock implementation of DatabaseMetricsAdapter for testing
 // type MockDatabaseMetricsAdapter struct {

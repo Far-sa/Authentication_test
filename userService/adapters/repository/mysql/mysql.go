@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"time"
 	"user-svc/internal/entity"
 	"user-svc/ports"
 
@@ -13,13 +12,13 @@ import (
 )
 
 type MysqlDB struct {
-	metrics ports.DatabaseMetrics
-	config  ports.Config
-	db      *sqlx.DB
-	logger  ports.Logger
+	//metrics ports.DatabaseMetrics
+	config ports.Config
+	db     *sqlx.DB
+	logger ports.Logger
 }
 
-func New(config ports.Config, metrics ports.DatabaseMetrics, logger ports.Logger) *MysqlDB {
+func New(config ports.Config, logger ports.Logger) *MysqlDB {
 	dbConfig := config.GetDatabaseConfig()
 
 	db, err := sqlx.Connect("mysql", fmt.Sprintf("%s:%s@(%s:%d)/%s",
@@ -29,7 +28,7 @@ func New(config ports.Config, metrics ports.DatabaseMetrics, logger ports.Logger
 		panic(fmt.Errorf("can not open mysql :%v", err))
 	}
 
-	return &MysqlDB{config: config, metrics: metrics, db: db, logger: logger}
+	return &MysqlDB{config: config, db: db, logger: logger}
 
 }
 
@@ -49,15 +48,15 @@ func (r MysqlDB) CreateUser(ctx context.Context, user entity.User) (entity.User,
 	r.logger.Info("Data inserted successfully", zap.String("query", query))
 
 	//! metrics
-	start := time.Now()
-	duration := time.Since(start).Seconds()
-	dbDurationHistogram := r.metrics.RegisterDatabaseDurationHistogram().WithLabelValues(query)
-	dbDurationHistogram.Observe(duration)
+	// start := time.Now()
+	// duration := time.Since(start).Seconds()
+	// dbDurationHistogram := r.metrics.RegisterDatabaseDurationHistogram().WithLabelValues(query)
+	// dbDurationHistogram.Observe(duration)
 
-	if err := recover(); err != nil {
-		dbErrorCounter := r.metrics.RegisterDatabaseErrorCounter().WithLabelValues(query)
-		dbErrorCounter.Inc()
-	}
+	// if err := recover(); err != nil {
+	// 	dbErrorCounter := r.metrics.RegisterDatabaseErrorCounter().WithLabelValues(query)
+	// 	dbErrorCounter.Inc()
+	// }
 
 	return user, nil
 }

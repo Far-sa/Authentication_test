@@ -9,7 +9,7 @@ import (
 	mocks "user-svc/ports/mock"
 
 	"github.com/labstack/echo/v4"
-	"github.com/prometheus/client_golang/prometheus"
+	//"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -36,8 +36,8 @@ func TestRegister_Success(t *testing.T) {
 	// Setup expectations
 	mockLogger.On("Info", "Handling register request", mock.Anything).Once()
 
-	mockMetrics.On("RegisterHTTPDurationHistogram").Return(&prometheus.HistogramVec{})
-	mockMetrics.On("RegisterHTTPErrorCounter").Return(&prometheus.CounterVec{})
+	// mockMetrics.On("RegisterHTTPDurationHistogram").Return(&prometheus.HistogramVec{})
+	// mockMetrics.On("RegisterHTTPErrorCounter").Return(&prometheus.CounterVec{})
 	mockLogger.On("Error", mock.AnythingOfType("string"), mock.Anything).Once()
 
 	//mockConfig.On("").Once()
@@ -46,8 +46,8 @@ func TestRegister_Success(t *testing.T) {
 
 	// Create a new instance of the Server struct with mocked dependencies
 	server := server{
-		logger:  mockLogger,
-		metrics: mockMetrics,
+		logger: mockLogger,
+		// metrics: mockMetrics,
 		userSvc: mockService,
 		Router:  echo.New(),
 	}

@@ -10,7 +10,6 @@ import (
 	"user-svc/adapters/config"
 	"user-svc/adapters/logger"
 	"user-svc/adapters/messaging"
-	"user-svc/adapters/metrics"
 	"user-svc/internal/entity"
 	userService "user-svc/internal/service"
 	"user-svc/internal/service/param"
@@ -69,10 +68,10 @@ func TestRegisterHandler(t *testing.T) {
 				log.Fatalf("failed to connect to RabbitMQ: %v", err)
 			}
 
-			prometheusAdapter := metrics.NewPrometheus()
+			//prometheusAdapter := metrics.NewPrometheus()
 			userSvc := userService.NewService(userRepoMock, publisher, zapLogger)
 
-			userHandler := New(configAdapter, userSvc, zapLogger, prometheusAdapter)
+			userHandler := New(configAdapter, userSvc, zapLogger)
 
 			//* http://localhost:5000/register
 			e := echo.New()

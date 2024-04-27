@@ -14,7 +14,7 @@ import (
 
 func TestMysqlDB_CreateUser_Success(t *testing.T) {
 	// Setup mocks
-	mockMetrics := mocks.NewMockDatabaseMetrics()
+	// mockMetrics := mocks.NewMockDatabaseMetrics()
 	mockConfig := mocks.NewMockConfig()
 	mockLogger := mocks.NewMockLogger()
 
@@ -48,7 +48,7 @@ func TestMysqlDB_CreateUser_Success(t *testing.T) {
 
 			// TODO: connection
 			// mysqlDB := mysql.MysqlDB{db: mockDB}
-			mysqlDB := mysql.New(mockConfig, mockMetrics, mockLogger)
+			mysqlDB := mysql.New(mockConfig, mockLogger)
 
 			user := entity.User{
 				PhoneNumber: tt.expectedUser.PhoneNumber,

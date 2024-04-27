@@ -15,7 +15,7 @@ func TestNewMysqlDB(t *testing.T) {
 
 	// Mock dependencies
 	mockConfig := mocks.NewMockConfig()
-	mockMetrics := mocks.NewMockDatabaseMetrics()
+	//mockMetrics := mocks.NewMockDatabaseMetrics()
 	mockLogger := mocks.NewMockLogger()
 
 	// Set expectations for mock config
@@ -34,7 +34,7 @@ func TestNewMysqlDB(t *testing.T) {
 	mockLogger.On("Error", mock.AnythingOfType("string"), mock.Anything).Once()
 
 	// Call the function under test
-	mysqlDB := mysql.New(mockConfig, mockMetrics, mockLogger)
+	mysqlDB := mysql.New(mockConfig, mockLogger)
 
 	// Assertions
 	assert.NotNil(t, mysqlDB, "MysqlDB instance should not be nil")

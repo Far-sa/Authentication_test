@@ -6,7 +6,6 @@ import (
 	"user-svc/adapters/delivery/httpServer"
 	"user-svc/adapters/logger"
 	"user-svc/adapters/messaging"
-	"user-svc/adapters/metrics"
 	"user-svc/adapters/repository/mysql"
 	userService "user-svc/internal/service"
 )
@@ -21,11 +20,11 @@ func main() {
 	}
 
 	//* Initialize Prometheus metrics adapter
-	prometheusAdapter := metrics.NewPrometheus()
+	//prometheusAdapter := metrics.NewPrometheus()
 	zapLogger, _ := logger.NewZapLogger(configAdapter)
 
 	//* Initialize repositories and services
-	userRepository := mysql.New(configAdapter, prometheusAdapter, zapLogger)
+	userRepository := mysql.New(configAdapter, zapLogger)
 	// TODO: add to config
 	publisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672", "users")
 	if err != nil {
@@ -41,7 +40,7 @@ func main() {
 	// grpcHandler.Start()
 
 	//* http handler
-	userHandler := httpServer.New(configAdapter, userService, zapLogger, prometheusAdapter)
+	userHandler := httpServer.New(configAdapter, userService, zapLogger)
 
 	userHandler.Serve()
 

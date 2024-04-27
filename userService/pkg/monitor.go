@@ -4,36 +4,34 @@ package pkg
 
 import (
 	"net/http"
-	"time"
-
-	"github.com/prometheus/client_golang/prometheus"
+	//"github.com/prometheus/client_golang/prometheus"
 )
 
-var (
-	requestDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "http_request_duration_seconds",
-		Help:    "Duration of HTTP requests.",
-		Buckets: prometheus.DefBuckets,
-	}, []string{"handler", "method", "status"})
-)
+// var (
+// 	requestDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+// 		Name:    "http_request_duration_seconds",
+// 		Help:    "Duration of HTTP requests.",
+// 		Buckets: prometheus.DefBuckets,
+// 	}, []string{"handler", "method", "status"})
+// )
 
-func init() {
-	prometheus.MustRegister(requestDuration)
-}
+// func init() {
+// 	prometheus.MustRegister(requestDuration)
+// }
 
-// MetricsMiddleware is a middleware for capturing request duration metrics
-func MetricsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
+// // MetricsMiddleware is a middleware for capturing request duration metrics
+// func MetricsMiddleware(next http.Handler) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		start := time.Now()
 
-		ww := statusWriter{ResponseWriter: w}
-		next.ServeHTTP(&ww, r)
+// 		ww := statusWriter{ResponseWriter: w}
+// 		next.ServeHTTP(&ww, r)
 
-		duration := time.Since(start).Seconds()
+// 		duration := time.Since(start).Seconds()
 
-		requestDuration.WithLabelValues(r.URL.Path, r.Method, http.StatusText(ww.status)).Observe(duration)
-	})
-}
+// 		requestDuration.WithLabelValues(r.URL.Path, r.Method, http.StatusText(ww.status)).Observe(duration)
+// 	})
+// }
 
 type statusWriter struct {
 	http.ResponseWriter
