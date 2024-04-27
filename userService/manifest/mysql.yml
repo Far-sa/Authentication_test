@@ -1,0 +1,42 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: microservices
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_DATABASE
+              value: "your_db_name"
+            - name: MYSQL_PASSWORD
+              value: "your_db_password"
+            - name: MYSQL_ROOT_PASSWORD
+              value: "password"
+
+---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: mysql
+#   namespace: microservices
+# spec:
+#   selector:
+#     app: mysql
+#   ports:
+#     - protocol: TCP
+#       port: 3306
+#       targetPort: 3306

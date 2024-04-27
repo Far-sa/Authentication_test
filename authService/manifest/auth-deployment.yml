@@ -16,12 +16,18 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: auth-service:1.1.1
-          imagePullPolicy: NEVER
+          image: auth-service:1.1.2
+          imagePullPolicy: Never
           ports:
             - containerPort: 5001
-          envFrom:
-            - configMapRef:
-                name: auth-configmap
-            - secretRef:
-                name: auth-secret
+          env:
+            - name: RABBITMQ_HOST
+              value: "localhost"
+            - name: POSTGRES_HOST
+              value: "localhost"
+
+          # envFrom:
+          #   - configMapRef:
+          #       name: auth-configmap
+          #   - secretRef:
+          #       name: auth-secret
