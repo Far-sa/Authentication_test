@@ -1,11 +1,28 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: postgres-pvc
+  name: rabbitmq-pvc
+  namespace: microservices
 spec:
   accessModes:
-  - ReadWriteOnce
+    - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi  # Adjust storage size as needed
-  storageClassName: local-storage # Replace with your storage class (e.g., local-storage)
+      storage: 1Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: microservices
+spec:
+   accessModes:
+    - ReadWriteOnce
+   resources:
+    requests:
+      storage: 1Gi
+   storageClassName: standard
+
+

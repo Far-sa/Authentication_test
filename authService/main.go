@@ -19,7 +19,7 @@ func main() {
 
 	authRepo := repository.NewAuthRepository()
 
-	eventPublisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672", "users")
+	eventPublisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672")
 	if err != nil {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
 	}

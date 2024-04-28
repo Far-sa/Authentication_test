@@ -13,8 +13,8 @@ type RabbitClient struct {
 	ch   *amqp.Channel
 }
 
-func NewRabbitMQClient(username, password, host, vhost string) (RabbitClient, error) {
-	conn, err := amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s/%s", username, password, host, vhost))
+func NewRabbitMQClient(username, password, host string) (RabbitClient, error) {
+	conn, err := amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s", username, password, host))
 	if err != nil {
 		return RabbitClient{}, err
 	}
