@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: microservices
+
+spec:
+  replicas: 2  # Adjust as needed
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+      - name: auth-service
+        image: auth-service:1.1.2
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5001
+        # Add environment variables or volume mounts as needed to connect to databases or RabbitMQ
+      # Consider adding resource requests and limits for CPU and memory
+      
+        env:
+          # RabbitMQ Connection Details
+          - name: RABBITMQ_HOST
+            value: "rabbitmq"  # Replace with actual service name
+          - name: RABBITMQ_PORT
+            value: "5672"
+          - name: RABBITMQ_USERNAME
+            value: "puppet"
+          - name: RABBITMQ_PASSWORD
+            valueFrom:  # Securely store password using a Secret
+              secretKeyRef:
+                name: rabbitmq-credentials  # Replace with your Secret name
+                key: password
+  # ... (other environment variables)
+          # Database Connection Details
+          - name: DATABASE_HOST
+            value: "postgres"  # Replace with actual service name of your database
+          - name: DATABASE_PORT
+            value: "5432"  # 
+          - name: DATABASE_NAME
+            value: "authDB" 
+          - name: DATABASE_USERNAME
+            value: "root" 
+          - name: DATABASE_PASSWORD
+            valueFrom:  # Securely store password using a Secret
+              secretKeyRef:
+                name: database-credentials  # Replace with your Secret name
+                key: password

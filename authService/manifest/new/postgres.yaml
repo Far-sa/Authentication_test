@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: microservices
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:12-alpine
+        ports:
+        - containerPort: 5432  # Replace with your database port (e.g., 3306 for MySQL)
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/mysql  # Replace with your database's data directory
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: postgres-pvc
