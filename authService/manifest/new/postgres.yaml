@@ -1,28 +1,98 @@
+# apiVersion: storage.k8s.io/v1
+# kind: StorageClass
+# metadata:
+#   name: sc-local
+# provisioner: k8s.io/minikube-hostpath
+# parameters:
+#   {}
+# reclaimPolicy: Delete
+# volumeBindingMode: Immediate
+# allowVolumeExpansion: false
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: database-credentials
+  namespace: microservices
+type: Opaque
+data:
+  username: cm9vdA==  # echo -n 'my_db_user' | base64
+  password: cGFzc3dvcmQ=
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: microservices
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+
+  clusterIP: "None"
+
+---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: postgres
   namespace: microservices
-
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: postgres
+  serviceName: postgres-service # "not-applicable"
   template:
     metadata:
       labels:
         app: postgres
     spec:
+      terminationGracePeriodSeconds: 10
       containers:
       - name: postgres
         image: postgres:12-alpine
         ports:
-        - containerPort: 5432  # Replace with your database port (e.g., 3306 for MySQL)
+        - name: http
+          containerPort: 5432
+          protocol: TCP
+        env:
+          - name: DATABASE_HOST
+            value: "postgres-service"
+          - name: DATABASE_PORT
+            value: "5432"
+          - name: DATABASE_NAME
+            value: "authDB"
+          - name: DATABASE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: database-credentials
+                key: POSTGRES_USER
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: database-credentials
+                key: POSTGRES_PASSWORD
+            # Other non-sensitive environment variables
         volumeMounts:
         - name: postgres-data
-          mountPath: /var/lib/mysql  # Replace with your database's data directory
-      volumes:
-      - name: postgres-data
-        persistentVolumeClaim:
-          claimName: postgres-pvc
+          mountPath: /var/lib/postgres
+      # volumes:
+      #   - name: postgres-volume
+      #     persistentVolumeClaim:
+      #       claimName: postgres-pvc
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      storageClassName: sc-local
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
