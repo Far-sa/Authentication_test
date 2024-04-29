@@ -17,10 +17,18 @@ spec:
           image: traefik:v2.5
           args:
             - "--api.insecure=true"
-            - "--providers.kubernetesingress=true"
-            # Other Traefik configuration
+            - "--providers.kubernetescrd"
           ports:
-            - name: web
+            - name: http
               containerPort: 80
-            - name: websecure
+            - name: https
               containerPort: 443
+            - name: api
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "20Mi"
+            limits:
+              cpu: "200m"
+              memory: "50Mi"

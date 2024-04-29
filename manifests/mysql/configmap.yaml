@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-configmap
+data:
+  #PLACEHOLDER: "NONE"
+  DATABASE_HOST: host.minikube.internal
+  DATABASE_PORT: "3306"
+  DATABASE_NAME: mysql_app
+  

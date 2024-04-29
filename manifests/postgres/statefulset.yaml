@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: microservices
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  serviceName: postgres-service # "not-applicable"
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: postgres
+        image: postgres:12-alpine
+        ports:
+        - name: http
+          containerPort: 5432
+          protocol: TCP
+        envFrom:
+          - configMapRef:
+              name: postgres-configmap
+          - secretRef:
+              name: postgres-secret
+        volumeMounts:
+        - name: postgres-volume
+          mountPath: /var/lib/postgres
+      volumes:
+        - name: postgres-volume
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+  # volumeClaimTemplates:
+  # - metadata:
+  #     name: postgres-data
+  #   spec:
+  #     storageClassName: sc-local
+  #     accessModes: [ "ReadWriteOnce" ]
+  #     resources:
+  #       requests:
+  #         storage: 1Gi

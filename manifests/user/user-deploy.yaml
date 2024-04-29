@@ -1,0 +1,66 @@
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user
+  namespace: microservices
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user
+  template:
+    metadata:
+      labels:
+        app: user
+    spec:
+       # Init containers to wait for dependencies
+      initContainers:
+      - name: wait-for-database
+        image: busybox:latest
+        command: ["sh", "-c"]
+        args: ["while ! nc -z database 5432; do sleep 3; done; exit 0"]
+      - name: wait-for-rabbitmq
+        image: busybox:latest
+        command: ["sh", "-c"]
+        args: ["while ! nc -z rabbitmq 5672; do sleep 3; done; exit 0"]
+
+      containers:
+        - name: user-service
+          image: user-service:2.0.0
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5001
+          # readinessProbe:
+          #   httpGet:
+          #     path: /health
+          #     port: 15672
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 10
+          #   failureThreshold: 3
+
+          envFrom:
+            - configMapRef:
+              name: mysql-configmap
+            - secretRef:
+              name: mysql-secret
+            - configMapRef:
+                name: rabbitmq-config
+            - secretRef:
+                name: rabbitmq-secret
+
+
+      # Liveness and readiness probes (uncomment and define as needed)
+      # livenessProbe:
+      #   httpGet:
+      #     path: /healthz
+      #     port: 5001
+      #   initialDelaySeconds: 15
+      #   periodSeconds: 20
+      # readinessProbe:
+      #   httpGet:
+      #     path: /readyz
+      #     port: 5001
+      #   initialDelaySeconds: 15
+      #   periodSeconds: 20

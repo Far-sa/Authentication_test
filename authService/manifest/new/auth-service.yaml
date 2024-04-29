@@ -1,3 +1,5 @@
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -38,38 +40,38 @@ spec:
           #   periodSeconds: 10
           #   failureThreshold: 3
 
-          # env:
-          #   - name: RABBITMQ_HOST
-          #     value: "rabbitmq-service"
-          #   - name: RABBITMQ_PORT
-          #     value: "5672"
-          #   - name: RABBITMQ_USERNAME
-          #     valueFrom:
-          #       secretKeyRef:
-          #         name: rabbitmq-credentials
-          #         key: username
-          #   - name: RABBITMQ_PASSWORD
-          #     valueFrom:
-          #       secretKeyRef:
-          #         name: rabbitmq-credentials
-          #         key: password
+          env:
+            - name: RABBITMQ_HOST
+              value: "rabbitmq-service"
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-credentials
+                  key: username
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-credentials
+                  key: password
 
-          #   - name: DATABASE_HOST
-          #     value: "postgres-service"
-          #   - name: DATABASE_PORT
-          #     value: "5432"
-          #   - name: DATABASE_NAME
-          #     value: "authDB"
-          #   - name: DATABASE_USERNAME
-          #     valueFrom:
-          #       secretKeyRef:
-          #         name: database-credentials
-          #         key: username
-          #   - name: DATABASE_PASSWORD
-          #     valueFrom:
-          #       secretKeyRef:
-          #         name: database-credentials
-          #         key: password
+            - name: DATABASE_HOST
+              value: "postgres-service"
+            - name: DATABASE_PORT
+              value: "5432"
+            - name: DATABASE_NAME
+              value: "authDB"
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: database-credentials
+                  key: username
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-credentials
+                  key: password
             # Other non-sensitive environment variables
 
           volumeMounts:

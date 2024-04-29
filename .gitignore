@@ -57,6 +57,9 @@ authService/data/
 userService/*.env
 userService/*.yaml
 
+authService/manifest/
+
+
 ./deployment
 deployment/
 /deployment/data/

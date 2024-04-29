@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-configmap
+data:
+  #PLACEHOLDER: "NONE"
+  DATABASE_HOST: host.minikube.internal
+  DATABASE_PORT: "5672"
+  DATABASE_NAME: authDB
+  
