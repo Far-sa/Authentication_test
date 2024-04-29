@@ -2,9 +2,10 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mysql-configmap
+  namespace: microservices
 data:
   #PLACEHOLDER: "NONE"
-  DATABASE_HOST: host.minikube.internal
-  DATABASE_PORT: "3306"
-  DATABASE_NAME: mysql_app
+  MYSQL_HOST: host.minikube.internal
+  MYSQL_PORT: "3306"
+  MYSQL_DATABASE: mysql_app
   

@@ -42,11 +42,11 @@ spec:
 
           envFrom:
             - configMapRef:
-              name: postgres-configmap
-            - secretRef:
-              name: postgres-secret
+                name: postgres-configmap
             - configMapRef:
-                name: rabbitmq-config
+                name: rabbitmq-configmap
+            - secretRef:
+                name: postgres-secret
             - secretRef:
                 name: rabbitmq-secret
 

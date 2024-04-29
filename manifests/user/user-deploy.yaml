@@ -42,11 +42,11 @@ spec:
 
           envFrom:
             - configMapRef:
-              name: mysql-configmap
-            - secretRef:
-              name: mysql-secret
+                name: mysql-configmap
             - configMapRef:
-                name: rabbitmq-config
+                name: rabbitmq-configmap
+            - secretRef:
+                name: mysql-secret
             - secretRef:
                 name: rabbitmq-secret
 
