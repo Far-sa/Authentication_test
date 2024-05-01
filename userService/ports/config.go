@@ -1,7 +1,7 @@
 package ports
 
 type Config interface {
-	LoadConfig() error
+	LoadConfig(filePth string) error
 	GetDatabaseConfig() DatabaseConfig
 	GetHTTPConfig() HTTPConfig
 	GetConstants() Constants

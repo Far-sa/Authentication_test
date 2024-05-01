@@ -20,12 +20,13 @@ type MysqlDB struct {
 
 func New(config ports.Config, logger ports.Logger) *MysqlDB {
 	dbConfig := config.GetDatabaseConfig()
+	//db, err := sqlx.Connect("mysql", "root:password@(localhost:3306)/mysql_app")
 
 	db, err := sqlx.Connect("mysql", fmt.Sprintf("%s:%s@(%s:%d)/%s",
 		dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name))
 	if err != nil {
 		logger.Error("Failed to open MySQL database", zap.Error(err))
-		panic(fmt.Errorf("can not open mysql :%v", err))
+		fmt.Errorf("can not open mysql :%v", err)
 	}
 
 	return &MysqlDB{config: config, db: db, logger: logger}

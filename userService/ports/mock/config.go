@@ -14,7 +14,7 @@ func NewMockConfig() *MockConfig {
 	return &MockConfig{}
 }
 
-func (m *MockConfig) LoadConfig() error {
+func (m *MockConfig) LoadConfig(filePath string) error {
 	args := m.Called()
 	return args.Error(0)
 }

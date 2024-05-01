@@ -27,10 +27,21 @@ services:
 
   userservice:
     build: ./userService
-    image: user-svc:3.0.0
+    image: user-svc:1.0.0
     container_name: user-svc
     ports:
       - 5000:5000
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      ################################
+      RABBITMQ_DEFAULT_USER: puppet
+      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_HOST: "localhost:5672"
+      #RABBITMQ_PORT: 5672 
     depends_on:
       - mysql
       - rabbitmq
@@ -42,9 +53,18 @@ services:
     
   authservice:
     build: ./authService
-    image: auth-svc:3.0.0
+    image: auth-svc:1.0.0
     ports:
       - 5001:5001
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ################################
+      RABBITMQ_DEFAULT_USER: puppet
+      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_HOST: "localhost:5672"
+      #RABBITMQ_PORT: 5672 
     depends_on:
       - postgres
       - rabbitmq

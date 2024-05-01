@@ -55,7 +55,8 @@ userService/config/
 userService/data/
 authService/data/
 userService/*.env
-userService/*.yaml
+
+# userService/*.yaml
 
 authService/manifest/
 userService/manifest/
@@ -70,6 +71,9 @@ authService/*.env
 
 /data
 data/
+
+/docker
+docker/
 
 ./userService/Makefile
 /authService/Makefile

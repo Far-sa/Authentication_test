@@ -1,7 +1,6 @@
 package httpServer
 
 import (
-	"fmt"
 	"net/http"
 	"user-svc/internal/service/param"
 	"user-svc/ports"
@@ -36,9 +35,9 @@ func (s server) Serve() {
 	s.Router.POST("/register", s.Register)
 	//s.Router.GET("/metrics", s.handleMetrics)
 
-	port := s.config.GetHTTPConfig().Port
-	address := fmt.Sprintf(":%d", port)
-	if err := s.Router.Start(address); err != nil {
+	// port := s.config.GetHTTPConfig().Port
+	// address := fmt.Sprintf(":%d", port)
+	if err := s.Router.Start(":5000"); err != nil {
 		s.logger.Error("Router error", zap.Error(err))
 	}
 

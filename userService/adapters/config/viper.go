@@ -11,35 +11,58 @@ type ViperAdapter struct {
 	viper *viper.Viper
 }
 
-func NewViperAdapter(configPaths ...string) *ViperAdapter {
-	va := &ViperAdapter{
+// func NewViperAdapter(configPaths ...string) *ViperAdapter {
+// 	va := &ViperAdapter{
+// 		viper: viper.New(),
+// 	}
+
+// 	for _, path := range configPaths {
+// 		va.viper.AddConfigPath(path)
+// 	}
+
+// 	return va
+// }
+
+// func NewViperAdapter(configFile string) (*ViperAdapter, error) {
+// 	v := viper.New()
+// 	v.SetConfigFile(configFile)
+// 	if err := v.ReadInConfig(); err != nil {
+// 		return nil, err
+// 	}
+// 	return &ViperAdapter{v}, nil
+// }
+
+func NewViperAdapter() *ViperAdapter {
+	return &ViperAdapter{
 		viper: viper.New(),
 	}
-
-	for _, path := range configPaths {
-		va.viper.AddConfigPath(path)
-	}
-
-	return va
 }
 
-func (va *ViperAdapter) LoadConfig() error {
-	va.viper.SetConfigName("config")
+// LoadConfig loads configuration from a YAML file.
+func (va *ViperAdapter) LoadConfig(filepath string) error {
+	va.viper.SetConfigFile(filepath)
 	va.viper.SetConfigType("yaml")
 
-	if err := va.viper.ReadInConfig(); err != nil {
-		return err
-	}
-
-	//! load env
-	va.viper.AutomaticEnv()
-	// err := godotenv.Load()
-	// if err != nil {
-	// 	return err
-	// }
-
-	return nil
+	return va.viper.ReadInConfig()
 }
+
+// func (va *ViperAdapter) LoadConfig() error {
+// 	va.viper.SetConfigName("config")
+// 	va.viper.SetConfigType("yaml")
+
+// 	if err := va.viper.ReadInConfig(); err != nil {
+// 		return err
+// 	}
+
+// 	//! load env
+// 	va.viper.AutomaticEnv()
+// 	// err := godotenv.Load()
+// 	// if err != nil {
+// 	// 	return err
+// 	// }
+
+// 	return nil
+// }
 
 func (va *ViperAdapter) GetDatabaseConfig() ports.DatabaseConfig {
 	var dbConfig ports.DatabaseConfig
@@ -74,12 +97,3 @@ func (va *ViperAdapter) GetLoggerConfig() ports.LoggerConfig {
 	va.viper.UnmarshalKey("logger", &loggerConfig)
 	return loggerConfig
 }
-
-// func NewViperAdapter(configFile string) (*ViperAdapter, error) {
-// 	v := viper.New()
-// 	v.SetConfigFile(configFile)
-// 	if err := v.ReadInConfig(); err != nil {
-// 		return nil, err
-// 	}
-// 	return &ViperAdapter{v}, nil
-// }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"user-svc/adapters/config"
 	"user-svc/adapters/delivery/httpServer"
@@ -13,10 +14,10 @@ import (
 func main() {
 
 	//? Initialize configuration adapter
-	configAdapter := config.NewViperAdapter("./config")
-	err := configAdapter.LoadConfig()
+	configAdapter := config.NewViperAdapter()
+	err := configAdapter.LoadConfig("./config.yaml")
 	if err != nil {
-		panic("failed to load configuration")
+		fmt.Println("failed to load configuration", err)
 	}
 
 	//* Initialize Prometheus metrics adapter
@@ -26,7 +27,7 @@ func main() {
 	//* Initialize repositories and services
 	userRepository := mysql.New(configAdapter, zapLogger)
 	// TODO: add to config
-	publisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672", "users")
+	publisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672")
 	if err != nil {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
 	}

@@ -1,0 +1,25 @@
+database:
+  host: localhost
+  port: 3306
+  user: root    
+  password: password
+  name: mysql_app
+
+http_server:
+  HTTP_PORT: 5000
+
+constants:
+  maxItemsPerPage: 20
+  maxRetryAttempts: 3
+
+statics:
+  welcomeMessage: "Welcome to our user service!"
+  defaultUserRole: "user"
+
+logger:
+  FileName: "./data/logs/log.json"
+  Localtime: false
+  MazSize: 50
+  MaxBackups: 3
+  MaxAge: 28
+  Compass: true

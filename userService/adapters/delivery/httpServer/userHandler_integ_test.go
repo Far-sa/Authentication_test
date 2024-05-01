@@ -48,8 +48,8 @@ func TestRegisterHandler(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 
 			//* Arrange
-			configAdapter := config.NewViperAdapter("../../../config")
-			err := configAdapter.LoadConfig()
+			configAdapter := config.NewViperAdapter()
+			err := configAdapter.LoadConfig("../../../config.yaml")
 			if err != nil {
 				panic("failed to load configuration")
 			}
@@ -63,7 +63,7 @@ func TestRegisterHandler(t *testing.T) {
 			}, nil)
 
 			zapLogger, _ := logger.NewZapLogger(configAdapter)
-			publisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672", "users")
+			publisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672")
 			if err != nil {
 				log.Fatalf("failed to connect to RabbitMQ: %v", err)
 			}
