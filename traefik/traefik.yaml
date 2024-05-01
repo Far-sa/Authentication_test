@@ -1,0 +1,17 @@
+log:
+  level: INFO
+  format: common  # common, json, logfmt
+  filePath: /var/log/traefik/traefik.log
+
+api:
+  insecure: true
+  dashboard: true
+
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false

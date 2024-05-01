@@ -58,6 +58,7 @@ userService/*.env
 userService/*.yaml
 
 authService/manifest/
+userService/manifest/
 
 
 ./deployment
@@ -66,6 +67,9 @@ deployment/
 /deployment/*.env
 
 authService/*.env
+
+/data
+data/
 
 ./userService/Makefile
 /authService/Makefile
