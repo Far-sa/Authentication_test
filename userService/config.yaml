@@ -9,9 +9,9 @@ http_server:
   HTTP_PORT: 5000
 
 rabbitmq:
-  host: rabbitmq
   user: guest
   password: guest
+  host: rabbitmq
   port: 5672
   #url: amqp://guest:guest@rabbitmq:5672/
 
@@ -24,9 +24,9 @@ statics:
   defaultUserRole: "user"
 
 logger:
-  FileName: "./data/logs/log.json"
-  Localtime: false
-  MazSize: 50
-  MaxBackups: 3
-  MaxAge: 28
-  Compass: true
+  fileName: "./data/logs/log.json"
+  localtime: false
+  mazSize: 50
+  maxBackups: 3
+  maxAge: 28
+  compass: true

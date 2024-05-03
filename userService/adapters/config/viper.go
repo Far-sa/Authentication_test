@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"log"
+	"strings"
 	"user-svc/ports"
 
 	"github.com/spf13/viper"
@@ -32,37 +34,22 @@ type ViperAdapter struct {
 // 	return &ViperAdapter{v}, nil
 // }
 
-func NewViperAdapter() *ViperAdapter {
-	return &ViperAdapter{
-		viper: viper.New(),
+func NewViperAdapter(filePath string) (*ViperAdapter, error) {
+
+	v := viper.New()
+	v.SetConfigName("config")
+	v.SetConfigType("yaml")
+	v.AddConfigPath(filePath) // Use provided filepath directly
+	v.AutomaticEnv()
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	err := v.ReadInConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error reading config file: %w", err)
 	}
+	return &ViperAdapter{viper: v}, nil
+
 }
-
-// LoadConfig loads configuration from a YAML file.
-func (va *ViperAdapter) LoadConfig(filepath string) error {
-	va.viper.SetConfigFile(filepath)
-	va.viper.SetConfigType("yaml")
-
-	return va.viper.ReadInConfig()
-}
-
-// func (va *ViperAdapter) LoadConfig() error {
-// 	va.viper.SetConfigName("config")
-// 	va.viper.SetConfigType("yaml")
-
-// 	if err := va.viper.ReadInConfig(); err != nil {
-// 		return err
-// 	}
-
-// 	//! load env
-// 	va.viper.AutomaticEnv()
-// 	// err := godotenv.Load()
-// 	// if err != nil {
-// 	// 	return err
-// 	// }
-
-// 	return nil
-// }
 
 func (va *ViperAdapter) GetDatabaseConfig() ports.DatabaseConfig {
 	var dbConfig ports.DatabaseConfig

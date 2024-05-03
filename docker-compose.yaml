@@ -1,4 +1,4 @@
-version : "3.8"
+version: "3.8"
 
 services:
   # traefik:
@@ -23,17 +23,17 @@ services:
   #     - ./traefik:/etc/traefik/  # Mount custom config file
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.traefik.rule=Host(`localhost`)"  
+  #     - "traefik.http.routers.traefik.rule=Host(`localhost`)"
 
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: rabbitmq
     hostname: rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmqctl", "status"]  # Checks rabbitmq status
-      interval: 10s  # Check every 10 seconds
-      timeout: 5s   # Wait for 5 seconds for response
-      retries: 5    # Retry up to 5 times before considering unhealthy
+      test: ["CMD", "rabbitmqctl", "status"] # Checks rabbitmq status
+      interval: 10s # Check every 10 seconds
+      timeout: 5s # Wait for 5 seconds for response
+      retries: 5 # Retry up to 5 times before considering unhealthy
     ports:
       - 5672:5672 # RabbitMQ default port
       - 15672:15672 # RabbitMQ management plugin
@@ -46,7 +46,7 @@ services:
     networks:
       - auth-network
       - user-network
-  
+
   postgres:
     image: postgres:12-alpine
     container_name: postgres
@@ -69,17 +69,17 @@ services:
     container_name: mysql_app
     restart: always
     ports:
-      - "3306:3306"  # MySQL default port
+      - "3306:3306" # MySQL default port
     environment:
       #MYSQL_PASSWORD: password
       MYSQL_ROOT_PASSWORD: password
-    volumes: 
+    volumes:
       - ./data/mysql-data:/var/lib/mysql
     networks:
       - user-network
 
   authservice:
-    build: 
+    build:
       context: ./authService
       dockerfile: Dockerfile
     image: auth-svc:1.0.0
@@ -110,13 +110,14 @@ services:
       - auth-network
 
   userservice:
-    build: 
+    build:
       context: ./userService
       dockerfile: Dockerfile
     image: user-svc:1.0.0
     container_name: user-svc
     ports:
       - 8000:5000
+    restart: always
     environment:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: guest
@@ -131,14 +132,13 @@ services:
     depends_on:
       - rabbitmq
       - mysql
+    # volumes:
+    #   - ./userService/config.yaml:/user-svc/config.yaml
     networks:
       - user-network
     # labels:
     #   - "traefik.enable=true"
     #   - "traefik.http.routers.userService.rule=Host(`localhost`)" # user.example.com
-    
- 
-
 
 networks:
   auth-network:
@@ -147,7 +147,6 @@ networks:
   user-network:
     external: true
     driver: bridge
-
 # networks:
 #   traefik-network:
 #     driver: bridge

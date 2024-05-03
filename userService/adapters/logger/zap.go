@@ -39,7 +39,7 @@ func NewZapLogger(config ports.Config) (*zapLogger, error) {
 	)
 
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
-	return &zapLogger{logger: logger}, nil
+	return &zapLogger{config: config, logger: logger}, nil
 
 }
 

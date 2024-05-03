@@ -14,10 +14,10 @@ func NewMockConfig() *MockConfig {
 	return &MockConfig{}
 }
 
-func (m *MockConfig) LoadConfig(filePath string) error {
-	args := m.Called()
-	return args.Error(0)
-}
+// func (m *MockConfig) LoadConfig(filePath string) error {
+// 	args := m.Called()
+// 	return args.Error(0)
+// }
 
 func (m *MockConfig) GetDatabaseConfig() ports.DatabaseConfig {
 	args := m.Called()

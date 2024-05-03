@@ -48,11 +48,11 @@ func TestRegisterHandler(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 
 			//* Arrange
-			configAdapter := config.NewViperAdapter()
-			err := configAdapter.LoadConfig("../../../config.yaml")
-			if err != nil {
-				panic("failed to load configuration")
-			}
+			configAdapter, _ := config.NewViperAdapter("../../../config.yaml")
+			// err := configAdapter.LoadConfig("../../../config.yaml")
+			// if err != nil {
+			// 	panic("failed to load configuration")
+			// }
 
 			userRepoMock := mocks.NewMockUserRepository()
 			userRepoMock.On("CreateUser").Return(entity.User{

@@ -14,8 +14,7 @@ import (
 func main() {
 
 	//? Initialize configuration adapter
-	configAdapter := config.NewViperAdapter()
-	err := configAdapter.LoadConfig("./config.yaml")
+	configAdapter, err := config.NewViperAdapter(".")
 	if err != nil {
 		fmt.Println("failed to load configuration", err)
 	}
@@ -27,7 +26,7 @@ func main() {
 	//* Initialize repositories and services
 	userRepository := mysql.New(configAdapter, zapLogger)
 
-	// TODO: add to config
+	fmt.Println("host rabbit:", configAdapter.GetBrokerConfig().Host)
 	//connectionString := "amqp://guest:guest@localhost:5672/"
 	publisher, err := messaging.NewRabbitMQClient(configAdapter)
 	if err != nil {
