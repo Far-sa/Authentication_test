@@ -80,6 +80,16 @@ func (va *ViperAdapter) GetHTTPConfig() ports.HTTPConfig {
 	return httpConfig
 }
 
+func (va *ViperAdapter) GetBrokerConfig() ports.BrokerConfig {
+	var brokerConfig ports.BrokerConfig
+	if err := va.viper.UnmarshalKey("rabbitmq", &brokerConfig); err != nil {
+		log.Printf("failed to unmarshal broker config: %v", err)
+	}
+	log.Printf("Broker Config: %+v", brokerConfig) // Debug log
+
+	return brokerConfig
+}
+
 func (va *ViperAdapter) GetConstants() ports.Constants {
 	var constants ports.Constants
 	va.viper.UnmarshalKey("constants", &constants)

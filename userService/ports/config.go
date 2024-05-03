@@ -7,19 +7,26 @@ type Config interface {
 	GetConstants() Constants
 	GetStatics() Statics
 	GetLoggerConfig() LoggerConfig
+	GetBrokerConfig() BrokerConfig
 }
 
 type DatabaseConfig struct {
-	Host     string
-	Port     int
 	User     string
 	Password string
-	Name     string
+	Host     string
+	Port     int
+	DBName   string
 }
 
 // Add HTTPConfig struct to hold HTTP server configuration
 type HTTPConfig struct {
 	Port int `yaml:"port"`
+}
+type BrokerConfig struct {
+	Host     string
+	User     string
+	Password string
+	Port     string
 }
 
 // Constants struct holds constant configuration values

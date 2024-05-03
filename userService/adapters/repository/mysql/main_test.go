@@ -24,7 +24,7 @@ func TestNewMysqlDB(t *testing.T) {
 		Password: "test_password",
 		Host:     "localhost",
 		Port:     3306,
-		Name:     "test_database",
+		DBName:   "test_database",
 	}
 	_ = expectedDbConfig
 

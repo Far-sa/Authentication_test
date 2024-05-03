@@ -45,6 +45,7 @@ services:
     restart: always
     networks:
       - auth-network
+      - user-network
   
   postgres:
     image: postgres:12-alpine
@@ -94,45 +95,55 @@ services:
     networks:
       - auth-network
 
-  # userservice:
-  #   build: ./userService
-  #   image: user-svc:1.0.0
-  #   container_name: user-svc
-  #   ports:
-  #     - 5000:5000
-  #   environment:
-  #     MYSQL_HOST: mysql
-  #     RABBITMQ_HOST: rabbitmq
-  #   depends_on:
-  #     - mysql
-  #     - rabbitmq
-  #   networks:
-  #     - microservices_network
-  #     # - userService-network
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.userService.rule=Host(`localhost`)" # user.example.com
+  userservice:
+    build: 
+      context: ./userService
+      dockerfile: Dockerfile
+    image: user-svc:1.0.0
+    container_name: user-svc
+    ports:
+      - 8000:5000
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      RABBITMQ_PORT: 5672
+      ##
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: mysql_app
+      MYSQL_USER: root
+      MYSQL_PASSWORD: password
+    depends_on:
+      - rabbitmq
+      - mysql
+    networks:
+      - user-network
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.userService.rule=Host(`localhost`)" # user.example.com
     
-  # mysql:
-  #   image: mysql:8.0
-  #   container_name: mysql_app
-  #   restart: always
-  #   ports:
-  #     - "3306:3306"  # MySQL default port
-  #   environment:
-  #     MYSQL_DATABASE: ${MYSQL_DATABASE}
-  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-  #     MYSQL_HOST: ${MYSQL_HOST}
-  #   volumes: 
-  #     - ./data/mysql-data:/var/lib/mysql
-  #   networks:
-  #     - microservices_network
-  #     # - userService-network
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_app
+    restart: always
+    ports:
+      - "3306:3306"  # MySQL default port
+    environment:
+      MYSQL_USER: root
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+    volumes: 
+      - ./data/mysql-data:/var/lib/mysql
+    networks:
+      - user-network
 
 
 networks:
   auth-network:
+    external: true
+    driver: bridge
+  user-network:
     external: true
     driver: bridge
 

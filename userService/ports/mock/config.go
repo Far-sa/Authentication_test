@@ -29,6 +29,11 @@ func (m *MockConfig) GetHTTPConfig() ports.HTTPConfig {
 	return args.Get(0).(ports.HTTPConfig)
 }
 
+func (m *MockConfig) GetBrokerConfig() ports.BrokerConfig {
+	args := m.Called()
+	return args.Get(0).(ports.BrokerConfig)
+}
+
 func (m *MockConfig) GetConstants() ports.Constants {
 	args := m.Called()
 	return args.Get(0).(ports.Constants)

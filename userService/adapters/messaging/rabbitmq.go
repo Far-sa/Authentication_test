@@ -4,27 +4,36 @@ package messaging
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"user-svc/ports"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type RabbitClient struct {
-	conn *amqp.Connection
-	ch   *amqp.Channel
+	config ports.Config
+	conn   *amqp.Connection
+	ch     *amqp.Channel
 }
 
-func NewRabbitMQClient(connString string) (RabbitClient, error) {
-	conn, err := amqp.Dial(connString)
+func NewRabbitMQClient(config ports.Config) (RabbitClient, error) {
+
+	rabbitConfig := config.GetBrokerConfig()
+
+	conn, err := amqp.Dial(
+		fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitConfig.User, rabbitConfig.Password, rabbitConfig.Host, rabbitConfig.Port))
 	if err != nil {
-		return RabbitClient{}, err
+		return RabbitClient{}, fmt.Errorf("error connecting to RabbitMQ: %w", err)
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
-		return RabbitClient{}, err
+		return RabbitClient{}, fmt.Errorf("error opening channel: %w", err)
 	}
 
+	// Defer closing the connection to ensure it's closed even in case of errors
+	defer conn.Close()
 	// if err := ch.Confirm(false); err != nil {
 	// 	return RabbitClient{}, nil
 	// }

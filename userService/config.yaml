@@ -1,12 +1,19 @@
 database:
-  host: localhost
-  port: 3306
   user: root    
   password: password
-  name: mysql_app
+  host: localhost
+  port: 3306
+  database: mysql_app
 
 http_server:
   HTTP_PORT: 5000
+
+rabbitmq:
+  host: rabbitmq
+  user: guest
+  password: guest
+  port: 5672
+  #url: amqp://guest:guest@rabbitmq:5672/
 
 constants:
   maxItemsPerPage: 20
