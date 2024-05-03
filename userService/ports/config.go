@@ -23,9 +23,9 @@ type HTTPConfig struct {
 	Port int `yaml:"port"`
 }
 type BrokerConfig struct {
-	Host     string
 	User     string
 	Password string
+	Host     string
 	Port     string
 }
 

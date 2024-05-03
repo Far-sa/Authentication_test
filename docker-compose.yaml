@@ -64,6 +64,20 @@ services:
     networks:
       - auth-network
 
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_app
+    restart: always
+    ports:
+      - "3306:3306"  # MySQL default port
+    environment:
+      #MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+    volumes: 
+      - ./data/mysql-data:/var/lib/mysql
+    networks:
+      - user-network
+
   authservice:
     build: 
       context: ./authService
@@ -87,7 +101,7 @@ services:
       - rabbitmq
       - postgres
     ports:
-      - 8000:5001
+      - 8001:5001
     restart: always
     labels:
       - "traefik.enable=true"
@@ -123,20 +137,7 @@ services:
     #   - "traefik.enable=true"
     #   - "traefik.http.routers.userService.rule=Host(`localhost`)" # user.example.com
     
-  mysql:
-    image: mysql:8.0
-    container_name: mysql_app
-    restart: always
-    ports:
-      - "3306:3306"  # MySQL default port
-    environment:
-      MYSQL_USER: root
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: password
-    volumes: 
-      - ./data/mysql-data:/var/lib/mysql
-    networks:
-      - user-network
+ 
 
 
 networks:
