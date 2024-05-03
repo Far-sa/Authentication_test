@@ -6,18 +6,20 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
-# Install MySQL and RabbitMQ client libraries
-# RUN apk add --no-cache mariadb-client rabbitmq-c
-
 COPY . .
 
 RUN go build -o /app/auth-svc
 
 # Runtime Steps
-FROM alpine
+FROM alpine:latest
 
 COPY --from=builder /app/auth-svc .
 
 EXPOSE 5001
+
+ENV RABBITMQ_HOST rabbitmq
+ENV RABBITMQ_USER guest
+ENV RABBITMQ_PASSWORD guest
+ENV RABBITMQ_PORT 5672
 
 CMD ["./auth-svc"]
