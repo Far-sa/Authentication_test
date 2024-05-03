@@ -8,29 +8,40 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type RabbitClient struct {
-	conn *amqp.Connection
-	ch   *amqp.Channel
+type RabbitMQConfig struct {
+	Host     string
+	User     string
+	Password string
+	Port     string
+	//Url string
 }
 
-func NewRabbitMQClient(username, password, host string) (RabbitClient, error) {
-	conn, err := amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s", username, password, host))
+type RabbitClient struct {
+	config RabbitMQConfig
+	conn   *amqp.Connection
+	ch     *amqp.Channel
+}
+
+func NewRabbitMQClient(config RabbitMQConfig) (RabbitClient, error) {
+
+	conn, err := amqp.Dial(
+		fmt.Sprintf("amqp://%s:%s@%s:%s/", config.User, config.Password, config.Host, config.Port))
 	if err != nil {
-		return RabbitClient{}, err
+		return RabbitClient{}, fmt.Errorf("error connecting to RabbitMQ: %w", err)
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
-		return RabbitClient{}, err
+		return RabbitClient{}, fmt.Errorf("error opening channel: %w", err)
 	}
-
 	// if err := ch.Confirm(false); err != nil {
 	// 	return RabbitClient{}, nil
 	// }
 
 	return RabbitClient{
-		conn: conn,
-		ch:   ch,
+		config: config,
+		conn:   conn,
+		ch:     ch,
 	}, nil
 }
 

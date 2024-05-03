@@ -1,131 +1,145 @@
 version : "3.8"
 
 services:
-  traefik:
-    image: traefik:v2.5
-    container_name: reverse-proxy
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      #- "--configfile=/etc/traefik/traefik_conf.yaml"  # Specify the custom config file path
+  # traefik:
+  #   image: traefik:v2.5
+  #   container_name: reverse-proxy
+  #   command:
+  #     - "--api.insecure=true"
+  #     - "--providers.docker=true"
+  #     - "--providers.docker.exposedbydefault=false"
+  #     - "--entrypoints.web.address=:80"
+  #     #- "--configfile=/etc/traefik/traefik_conf.yaml"  # Specify the custom config file path
 
-    ports:
-      - "8090:80"
-      - "8080:8080"  # Expose Traefik dashboard
-    networks:
-      - traefik-network
-      - userService-network
-      - authService-network
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./traefik:/etc/traefik/  # Mount custom config file
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`localhost`)"  
-
-  userservice:
-    build: ./userService
-    image: user-svc:1.0.0
-    container_name: user-svc
-    ports:
-      - 5000:5000
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_HOST: ${MYSQL_HOST}
-      MYSQL_PORT: ${MYSQL_PORT}
-      ################################
-      RABBITMQ_DEFAULT_USER: puppet
-      RABBITMQ_DEFAULT_PASS: password
-      RABBITMQ_HOST: "localhost:5672"
-      #RABBITMQ_PORT: 5672 
-    depends_on:
-      - mysql
-      - rabbitmq
-    networks:
-      - userService-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.userService.rule=Host(`localhost`)" # user.example.com
-    
-  authservice:
-    build: ./authService
-    image: auth-svc:1.0.0
-    ports:
-      - 5001:5001
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      ################################
-      RABBITMQ_DEFAULT_USER: puppet
-      RABBITMQ_DEFAULT_PASS: password
-      RABBITMQ_HOST: "localhost:5672"
-      #RABBITMQ_PORT: 5672 
-    depends_on:
-      - postgres
-      - rabbitmq
-    networks:
-      - authService-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.authService.rule=Host(`localhost`)" # auth.example.com
-
-  mysql:
-    image: mysql:8.0
-    container_name: mysql_app
-    restart: always
-    ports:
-      - "3306:3306"  # MySQL default port
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_HOST: ${MYSQL_HOST}
-    volumes: 
-      - ./data/mysql-data:/var/lib/mysql
-    networks:
-      - userService-network
-
-  postgres:
-    image: postgres:12-alpine
-    restart: always
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
-    networks:
-      - authService-network
-    volumes:
-      - ./data/pgdata:/var/lib/postgresql/data
+  #   ports:
+  #     - "8090:80"
+  #     - "8080:8080"  # Expose Traefik dashboard
+  #   networks:
+  #     - traefik-network
+  #     - userService-network
+  #     - authService-network
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ./traefik:/etc/traefik/  # Mount custom config file
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.traefik.rule=Host(`localhost`)"  
 
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: rabbitmq
+    hostname: rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]  # Checks rabbitmq status
+      interval: 10s  # Check every 10 seconds
+      timeout: 5s   # Wait for 5 seconds for response
+      retries: 5    # Retry up to 5 times before considering unhealthy
     ports:
-      - "5672:5672"  # RabbitMQ default port
-      - "15672:15672"  # RabbitMQ management plugin
-    networks:
-      - userService-network
-      - authService-network
+      - 5672:5672 # RabbitMQ default port
+      - 15672:15672 # RabbitMQ management plugin
     environment:
-      RABBITMQ_DEFAULT_USER: puppet
-      RABBITMQ_DEFAULT_PASS: password
-      RABBITMQ_HOST: localhost
-      RABBITMQ_VHOST: "users"
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
     volumes:
       - ./data/rabbitmq-data:/var/lib/rabbitmq
+    restart: always
+    networks:
+      - auth-network
+  
+  postgres:
+    image: postgres:12-alpine
+    container_name: postgres
+    hostname: postgres
+    restart: always
+    environment:
+      #POSTGRES_DB: authDB
+      #POSTGRES_USER: root
+      - POSTGRES_PASSWORD=password
+      #POSTGRES_HOST: localhost
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+    networks:
+      - auth-network
+
+  authservice:
+    build: 
+      context: ./authService
+      dockerfile: Dockerfile
+    image: auth-svc:1.0.0
+    container_name: auth-service
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      RABBITMQ_PORT: 5672
+      #AMQP_URL: 'amqp://rabbitmq?connection_attempts=5&retry_delay=5'
+      #RABBITMQ_URL="amqp://guest:guest@localhost:5672/"
+      ###
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: authDB
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password
+    depends_on:
+      - rabbitmq
+      - postgres
+    ports:
+      - 8000:5001
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authService.rule=Host(`localhost`)" # auth.example.com
+    networks:
+      - auth-network
+
+  # userservice:
+  #   build: ./userService
+  #   image: user-svc:1.0.0
+  #   container_name: user-svc
+  #   ports:
+  #     - 5000:5000
+  #   environment:
+  #     MYSQL_HOST: mysql
+  #     RABBITMQ_HOST: rabbitmq
+  #   depends_on:
+  #     - mysql
+  #     - rabbitmq
+  #   networks:
+  #     - microservices_network
+  #     # - userService-network
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.userService.rule=Host(`localhost`)" # user.example.com
+    
+  # mysql:
+  #   image: mysql:8.0
+  #   container_name: mysql_app
+  #   restart: always
+  #   ports:
+  #     - "3306:3306"  # MySQL default port
+  #   environment:
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE}
+  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+  #     MYSQL_HOST: ${MYSQL_HOST}
+  #   volumes: 
+  #     - ./data/mysql-data:/var/lib/mysql
+  #   networks:
+  #     - microservices_network
+  #     # - userService-network
 
 
 networks:
-  traefik-network:
+  auth-network:
+    external: true
     driver: bridge
-  userService-network:
-    driver: bridge
-  authService-network:
-    driver: bridge
+
+# networks:
+#   traefik-network:
+#     driver: bridge
+#   userService-network:
+#     driver: bridge
+#   authService-network:
+#     driver: bridge

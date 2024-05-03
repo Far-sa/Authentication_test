@@ -56,7 +56,7 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 		return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Consume user info messages from RabbitMQ
+	//! Consume user info messages from RabbitMQ
 	go s.consumeUserMessages()
 
 	// Wait for user data to be available before proceeding

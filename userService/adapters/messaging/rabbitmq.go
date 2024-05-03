@@ -4,7 +4,6 @@ package messaging
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -15,8 +14,8 @@ type RabbitClient struct {
 	ch   *amqp.Channel
 }
 
-func NewRabbitMQClient(username, password, host string) (RabbitClient, error) {
-	conn, err := amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s", username, password, host))
+func NewRabbitMQClient(connString string) (RabbitClient, error) {
+	conn, err := amqp.Dial(connString)
 	if err != nil {
 		return RabbitClient{}, err
 	}

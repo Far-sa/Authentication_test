@@ -1,0 +1,16 @@
+rabbitmq:
+  host: rabbitmq
+  user: guest
+  password: guest
+  port: 5672
+  #url: amqp://guest:guest@rabbitmq:5672/
+
+
+
+db:
+  username: root
+  password: password
+  port: 3306
+  host: db
+  database: authDB
+  #url: postgresql://root:password@localhost:5432/authDB?sslmode=disable

@@ -27,7 +27,8 @@ func main() {
 	//* Initialize repositories and services
 	userRepository := mysql.New(configAdapter, zapLogger)
 	// TODO: add to config
-	publisher, err := messaging.NewRabbitMQClient("puppet", "password", "localhost:5672")
+	connectionString := "amqp://guest:guest@localhost:5672/"
+	publisher, err := messaging.NewRabbitMQClient(connectionString)
 	if err != nil {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
 	}
