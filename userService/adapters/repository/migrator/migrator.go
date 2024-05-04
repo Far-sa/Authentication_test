@@ -9,6 +9,7 @@ import (
 )
 
 type Migrator struct {
+	//db        sqlx.DB
 	config    ports.Config
 	migration *migrate.FileMigrationSource
 }
@@ -24,10 +25,10 @@ func New(config ports.Config) Migrator {
 
 func (m Migrator) Up() error {
 
+	dbConf := m.config.GetDatabaseConfig()
+
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@(%s:%d)/%s",
-		m.config.GetDatabaseConfig().User, m.config.GetDatabaseConfig().Password,
-		m.config.GetDatabaseConfig().Host, m.config.GetDatabaseConfig().Port,
-		m.config.GetDatabaseConfig().DBName))
+		dbConf.User, dbConf.Password, dbConf.Host, dbConf.Port, dbConf.DBName))
 
 	if err != nil {
 		return err
@@ -43,10 +44,10 @@ func (m Migrator) Up() error {
 
 func (m Migrator) Down() error {
 
+	dbConf := m.config.GetDatabaseConfig()
+
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@(%s:%d)/%s",
-		m.config.GetDatabaseConfig().User, m.config.GetDatabaseConfig().Password,
-		m.config.GetDatabaseConfig().Host, m.config.GetDatabaseConfig().Port,
-		m.config.GetDatabaseConfig().DBName))
+		dbConf.User, dbConf.Password, dbConf.Host, dbConf.Port, dbConf.DBName))
 
 	if err != nil {
 		return err

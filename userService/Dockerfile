@@ -1,30 +1,3 @@
-# FROM golang:1.19-alpine3.15 As builder
-
-# WORKDIR /app
-
-# COPY go.mod go.sum ./
-# RUN go mod download && go mod verify
-
-# COPY . .
-
-# RUN go build -o /app/user-svc
-
-# # Runtime Steps
-# FROM alpine
-
-
-# COPY --from=builder /app/user-svc .
-
-# EXPOSE 5000
-
-# ENV RABBITMQ_HOST rabbitmq
-# ENV RABBITMQ_USER guest
-# ENV RABBITMQ_PASSWORD guest
-# ENV RABBITMQ_PORT 5672
-
-# CMD ["./user-svc"]
-
-####
 # Builder Stage
 FROM golang:1.19-alpine3.15 AS builder
 
@@ -43,13 +16,13 @@ RUN go build -o /app/user-svc
 # Final Stage
 FROM alpine:latest
 
-
 # Copy the built binary from the builder stage
 COPY --from=builder /app/user-svc .
 
 # Explicitly copy the configuration file into the container
 # COPY ./config ./config
 COPY config.yaml ./
+COPY infrastructure/db/migrations ./
 
 # Set executable permissions for the binary
 # RUN chmod +x user-svc

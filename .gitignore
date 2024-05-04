@@ -70,6 +70,7 @@ authService/*.env
 
 /data
 data/
+./data
 
 /docker
 docker/

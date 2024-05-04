@@ -66,12 +66,14 @@ services:
 
   mysql:
     image: mysql:8.0
-    container_name: mysql_app
+    container_name: mysql
     restart: always
     ports:
       - "3306:3306" # MySQL default port
     environment:
+      #MYSQL_USER: root
       #MYSQL_PASSWORD: password
+      MYSQL_DATABASE: mysql_app
       MYSQL_ROOT_PASSWORD: password
     volumes:
       - ./data/mysql-data:/var/lib/mysql
