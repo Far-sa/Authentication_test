@@ -51,7 +51,6 @@ go.work
 *.txt
 *.text
 
-userService/config/
 userService/data/
 authService/data/
 userService/*.env

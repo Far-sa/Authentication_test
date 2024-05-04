@@ -48,7 +48,7 @@ func TestRegisterHandler(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 
 			//* Arrange
-			configAdapter, _ := config.NewViperAdapter("../../../config.yaml")
+			configAdapter, _ := config.NewViperAdapter()
 			// err := configAdapter.LoadConfig("../../../config.yaml")
 			// if err != nil {
 			// 	panic("failed to load configuration")

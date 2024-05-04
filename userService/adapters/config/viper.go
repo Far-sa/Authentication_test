@@ -25,21 +25,12 @@ type ViperAdapter struct {
 // 	return va
 // }
 
-// func NewViperAdapter(configFile string) (*ViperAdapter, error) {
-// 	v := viper.New()
-// 	v.SetConfigFile(configFile)
-// 	if err := v.ReadInConfig(); err != nil {
-// 		return nil, err
-// 	}
-// 	return &ViperAdapter{v}, nil
-// }
-
-func NewViperAdapter(filePath string) (*ViperAdapter, error) {
+func NewViperAdapter() (*ViperAdapter, error) {
 
 	v := viper.New()
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
-	v.AddConfigPath(filePath) // Use provided filepath directly
+	v.AddConfigPath(".") // Use provided filepath directly
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 

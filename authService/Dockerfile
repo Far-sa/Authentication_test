@@ -13,7 +13,12 @@ RUN go build -o /app/auth-svc
 # Runtime Steps
 FROM alpine:latest
 
+WORKDIR /app
+
 COPY --from=builder /app/auth-svc .
+
+# Explicitly copy the configuration file into the container
+# COPY auth-svc/config ./config
 
 EXPOSE 5001
 

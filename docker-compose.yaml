@@ -82,8 +82,8 @@ services:
     build:
       context: ./authService
       dockerfile: Dockerfile
-    image: auth-svc:1.0.0
-    container_name: auth-service
+    image: auth-service:2.0.0
+    container_name: auth-svc
     environment:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: guest
@@ -113,7 +113,7 @@ services:
     build:
       context: ./userService
       dockerfile: Dockerfile
-    image: user-svc:1.0.0
+    image: user-service:2.0.0
     container_name: user-svc
     ports:
       - 8000:5000
@@ -129,11 +129,13 @@ services:
       MYSQL_DB: mysql_app
       MYSQL_USER: root
       MYSQL_PASSWORD: password
+      ##
+      # APP_CONFIG_PATH: /app/user-svc/config.yaml  # Pointing to the mounted config file
     depends_on:
       - rabbitmq
       - mysql
-    # volumes:
-    #   - ./userService/config.yaml:/user-svc/config.yaml
+    volumes:
+      - ./userService/config.yaml:/app/user-svc/config.yaml
     networks:
       - user-network
     # labels:

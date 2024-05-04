@@ -14,20 +14,21 @@ import (
 func main() {
 
 	//? Initialize configuration adapter
-	configAdapter, err := config.NewViperAdapter(".")
+	configAdapter, err := config.NewViperAdapter()
 	if err != nil {
 		fmt.Println("failed to load configuration", err)
 	}
 
 	//* Initialize Prometheus metrics adapter
 	//prometheusAdapter := metrics.NewPrometheus()
-	zapLogger, _ := logger.NewZapLogger(configAdapter)
+	zapLogger, err := logger.NewZapLogger(configAdapter)
+	if err != nil {
+		log.Fatalf("failed to init logger-config: %v", err)
+	}
 
 	//* Initialize repositories and services
 	userRepository := mysql.New(configAdapter, zapLogger)
 
-	fmt.Println("host rabbit:", configAdapter.GetBrokerConfig().Host)
-	//connectionString := "amqp://guest:guest@localhost:5672/"
 	publisher, err := messaging.NewRabbitMQClient(configAdapter)
 	if err != nil {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
