@@ -7,6 +7,7 @@ import (
 	"user-svc/adapters/delivery/httpServer"
 	"user-svc/adapters/logger"
 	"user-svc/adapters/messaging"
+	"user-svc/adapters/repository/migrator"
 	"user-svc/adapters/repository/mysql"
 	userService "user-svc/internal/service"
 )
@@ -18,6 +19,10 @@ func main() {
 	if err != nil {
 		fmt.Println("failed to load configuration", err)
 	}
+
+	//TODO :
+	mgr := migrator.New(configAdapter)
+	mgr.Up()
 
 	//* Initialize Prometheus metrics adapter
 	//prometheusAdapter := metrics.NewPrometheus()

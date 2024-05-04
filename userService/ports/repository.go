@@ -10,3 +10,9 @@ type UserRepository interface {
 	GetUserByID(ctx context.Context, userID uint) (entity.User, error)
 	IsPhoneNumberUnique(phoneNumber string) (bool, error)
 }
+
+// MigrationManager interface defines methods for managing migrations
+type MigrationManager interface {
+	Up() error   // Apply pending migrations
+	Down() error // Revert migrations (optional)
+}
