@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"log"
-	"strings"
 	"user-svc/ports"
 
 	"github.com/spf13/viper"
@@ -32,7 +31,7 @@ func NewViperAdapter() (*ViperAdapter, error) {
 	v.SetConfigType("yaml")
 	v.AddConfigPath(".") // Use provided filepath directly
 	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	//v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	err := v.ReadInConfig()
 	if err != nil {

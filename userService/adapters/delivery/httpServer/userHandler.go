@@ -67,8 +67,6 @@ func (s server) Register(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 
-	ctx := c.Request().Context()
-
 	// fieldErrors, err := s.validator.ValidateRegisterRequest(req)
 	// if err != nil {
 	// 	//* richError usage
@@ -78,6 +76,8 @@ func (s server) Register(c echo.Context) error {
 	// 		"Errors":  fieldErrors,
 	// 	})
 	// }
+
+	ctx := c.Request().Context()
 
 	resp, err := s.userSvc.Register(ctx, req)
 	if err != nil {
