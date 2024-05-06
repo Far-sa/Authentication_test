@@ -45,8 +45,9 @@ services:
       - ./data/rabbitmq-data:/var/lib/rabbitmq
     restart: always
     networks:
-      - auth-network
-      - user-network
+      - rabbitmq_network
+      # - auth-network
+      # - user-network
 
   postgres:
     image: postgres:12-alpine
@@ -111,6 +112,8 @@ services:
       - "traefik.http.routers.authService.rule=Host(`localhost`)" # auth.example.com
     networks:
       - auth-network
+      - rabbitmq_network
+
 
   userservice:
     build:
@@ -140,6 +143,8 @@ services:
     restart: always
     networks:
       - user-network
+      - rabbitmq_network
+
     # labels:
     #   - "traefik.enable=true"
     #   - "traefik.http.routers.userService.rule=Host(`localhost`)" # user.example.com
@@ -225,6 +230,9 @@ networks:
     external: true
     driver: bridge
   user-network:
+    external: true
+    driver: bridge
+  rabbitmq_network:
     external: true
     driver: bridge
 
