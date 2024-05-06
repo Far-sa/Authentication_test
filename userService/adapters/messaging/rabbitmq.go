@@ -20,27 +20,34 @@ type RabbitClient struct {
 func NewRabbitMQClient(config ports.Config) (RabbitClient, error) {
 
 	rabbitConfig := config.GetBrokerConfig()
+	dsn := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitConfig.User, rabbitConfig.Password, rabbitConfig.Host, rabbitConfig.Port)
 
-	conn, err := amqp.Dial(
-		fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitConfig.User, rabbitConfig.Password, rabbitConfig.Host, rabbitConfig.Port))
+	conn, err := amqp.Dial(dsn)
 	if err != nil {
+		log.Fatalf("Error connecting to RabbitMQ: %s", err)
 		return RabbitClient{}, fmt.Errorf("error connecting to RabbitMQ: %w", err)
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
+		log.Fatalf("Error opening channel: %s", err)
+		conn.Close() // Close the connection if channel opening fails
 		return RabbitClient{}, fmt.Errorf("error opening channel: %w", err)
 	}
 
+	if ch == nil {
+		log.Fatal("RabbitMQ channel is nil")
+	}
+
 	// Defer closing the connection to ensure it's closed even in case of errors
-	defer conn.Close()
-	// if err := ch.Confirm(false); err != nil {
-	// 	return RabbitClient{}, nil
-	// }
+	if err := ch.Confirm(false); err != nil {
+		return RabbitClient{}, nil
+	}
 
 	return RabbitClient{
-		conn: conn,
-		ch:   ch,
+		config: config,
+		conn:   conn,
+		ch:     ch,
 	}, nil
 }
 
