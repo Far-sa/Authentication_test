@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"log"
 	"user-svc/internal/entity"
 	"user-svc/ports"
 
@@ -22,18 +23,22 @@ func New(config ports.Config, logger ports.Logger) *MysqlDB {
 	dbConfig := config.GetDatabaseConfig()
 	//db, err := sqlx.Connect("mysql", "root:password@(localhost:3306)/mysql_app")
 
-	fmt.Println("DB host is:", dbConfig.Host)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
+		dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
 
-	db, err := sqlx.Connect("mysql", fmt.Sprintf("%s:%s@%s:%d/%s",
-		dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.DBName))
+	db, err := sqlx.Open("mysql", dsn)
 	if err != nil {
 		logger.Error("Failed to open MySQL database", zap.Error(err))
-		fmt.Errorf("can not open mysql :%v", err)
 	}
 
-	// db.SetConnMaxLifetime(time.Minute * 3)
-	// db.SetMaxOpenConns(10)
-	// db.SetMaxIdleConns(10)
+	err = db.Ping()
+	if err != nil {
+		log.Fatal("Error pinging database:", err)
+	}
+
+	if db == nil {
+		log.Fatal("Database object is nil")
+	}
 
 	return &MysqlDB{config: config, db: db, logger: logger}
 
@@ -49,7 +54,10 @@ func (r MysqlDB) CreateUser(ctx context.Context, user entity.User) (entity.User,
 		return entity.User{}, fmt.Errorf("can not execute command %w", err)
 	}
 
-	id, _ := res.LastInsertId()
+	id, iErr := res.LastInsertId()
+	if iErr != nil {
+		return entity.User{}, fmt.Errorf("failed to ... %w", iErr)
+	}
 	user.ID = uint(id)
 
 	r.logger.Info("Data inserted successfully", zap.String("query", query))

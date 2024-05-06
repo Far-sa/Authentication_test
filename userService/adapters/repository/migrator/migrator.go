@@ -27,7 +27,7 @@ func (m Migrator) Up() error {
 
 	dbConf := m.config.GetDatabaseConfig()
 
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@(%s:%d)/%s",
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
 		dbConf.User, dbConf.Password, dbConf.Host, dbConf.Port, dbConf.DBName))
 
 	if err != nil {
@@ -46,7 +46,7 @@ func (m Migrator) Down() error {
 
 	dbConf := m.config.GetDatabaseConfig()
 
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@(%s:%d)/%s",
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
 		dbConf.User, dbConf.Password, dbConf.Host, dbConf.Port, dbConf.DBName))
 
 	if err != nil {
