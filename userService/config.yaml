@@ -3,7 +3,7 @@ database:
   password: password
   host: mysql
   port: 3306
-  database: mysql_app
+  database: mysqluser
 
 http_server:
   HTTP_PORT: 5000

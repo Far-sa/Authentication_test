@@ -26,7 +26,7 @@ services:
   #     - "traefik.http.routers.traefik.rule=Host(`localhost`)"
 
   rabbitmq:
-    image: rabbitmq:3.12-management
+    image: rabbitmq:3.9-management
     container_name: rabbitmq
     hostname: rabbitmq
     healthcheck:
@@ -35,11 +35,12 @@ services:
       timeout: 5s # Wait for 5 seconds for response
       retries: 5 # Retry up to 5 times before considering unhealthy
     ports:
-      - 5672:5672 # RabbitMQ default port
-      - 15672:15672 # RabbitMQ management plugin
+      - "5672:5672" # RabbitMQ default port
+      - "15672:15672" # RabbitMQ management plugin
     environment:
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASS=guest
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_VHOST: /
     volumes:
       - ./data/rabbitmq-data:/var/lib/rabbitmq
     restart: always
@@ -73,7 +74,7 @@ services:
     environment:
       #MYSQL_USER: root
       #MYSQL_PASSWORD: password
-      MYSQL_DATABASE: mysql_app
+      MYSQL_DATABASE: mysqlUser
       MYSQL_ROOT_PASSWORD: password
     volumes:
       - ./data/mysql-data:/var/lib/mysql
@@ -117,9 +118,7 @@ services:
       dockerfile: Dockerfile
     image: user-service:2.0.0
     container_name: user-svc
-    ports:
-      - 8000:5000
-    restart: always
+
     environment:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: guest
@@ -128,7 +127,7 @@ services:
       ##
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_DB: mysql_app
+      MYSQL_DB: mysqlUser
       MYSQL_USER: root
       MYSQL_PASSWORD: password
       ##
@@ -136,8 +135,9 @@ services:
     depends_on:
       - rabbitmq
       - mysql
-    volumes:
-      - ./userService/config.yaml:/app/user-svc/config.yaml
+    ports:
+      - 8000:5000
+    restart: always
     networks:
       - user-network
     # labels:
