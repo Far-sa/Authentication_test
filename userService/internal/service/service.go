@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 	"user-svc/internal/entity"
 	"user-svc/internal/service/param"
@@ -56,38 +55,10 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 	}
 
 	//? publish event
-	if err := us.eventPublisher.DeclareExchange("user_data_exchange", "topic"); err != nil {
-		fmt.Println("declare exchange create error", err)
-		// Handle error appropriately
-	}
-
-	// Declare Queue
-	queue, err := us.eventPublisher.CreateQueue("auth_queue", true, false)
-	if err != nil {
-		fmt.Println("create queue error:", err)
-		// Handle the error appropriately
-	}
-
-	if err := us.eventPublisher.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
-		fmt.Println("binding error", err)
-		// Handle error appropriately
-	}
-
-	body, err := json.Marshal(createdUser)
-	if err != nil {
-		log.Fatalf("Failed to serialize user data: %v", err)
-	}
-
-	err = us.eventPublisher.Publish(ctx, "user_data_exchange", "auth_routing_key", amqp091.Publishing{
-		ContentType:   "text/plain",
-		DeliveryMode:  amqp091.Persistent,
-		Body:          body,
-		CorrelationId: "",
-	})
-
-	if err != nil {
+	// Call separate function to publish user data
+	if err := us.publishUserData(ctx, createdUser); err != nil {
 		us.logger.Error("Failed to publish user credential to auth-service", zap.Error(err))
-		return param.RegisterResponse{}, fmt.Errorf("failed to publish user auth-service: %w", err)
+		return param.RegisterResponse{}, fmt.Errorf("error publishing user data: %w", err)
 	}
 
 	us.logger.Info("User created successfully", zap.Any("user", createdUser))
@@ -103,6 +74,39 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 
 func (us Service) Login(user entity.User) error {
 	panic("unimplemented")
+}
+
+func (us Service) publishUserData(ctx context.Context, createdUser interface{}) error {
+
+	if err := us.eventPublisher.DeclareExchange("user_data_exchange", "topic"); err != nil {
+		return fmt.Errorf("failed to declare exchange: %w", err)
+	}
+
+	// Declare Queue
+	queue, err := us.eventPublisher.CreateQueue("auth_queue", true, false)
+	if err != nil {
+		return fmt.Errorf("failed to create queue: %w", err)
+	}
+
+	if err := us.eventPublisher.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
+		return fmt.Errorf("failed to create binding: %w", err)
+	}
+
+	body, err := json.Marshal(createdUser)
+	if err != nil {
+		return fmt.Errorf("failed to serialize user data: %w", err)
+	}
+
+	if err := us.eventPublisher.Publish(ctx, "user_data_exchange", "auth_routing_key", amqp091.Publishing{
+		ContentType:   "text/plain",
+		DeliveryMode:  amqp091.Persistent,
+		Body:          body,
+		CorrelationId: "",
+	}); err != nil {
+		return fmt.Errorf("failed to publish user to auth-service: %w", err)
+	}
+
+	return nil
 }
 
 // GenerateToken generates a JWT token
