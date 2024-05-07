@@ -96,41 +96,34 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 	}
 }
 
-func (s authService) consumeUserMessages() {
+func (s authService) consumeUserMessages() error {
 	// Declare exchange (if needed)
 	if err := s.event.DeclareExchange("user_data_exchange", "topic"); err != nil {
-		fmt.Println("declare exchange error:", err)
-		// Handle the error appropriately
-		return
+		return fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
 	// Create queue
 	queue, err := s.event.CreateQueue("auth_queue", true, false)
 	if err != nil {
-		fmt.Println("create queue error:", err)
-		// Handle the error appropriately
-		return
+		return fmt.Errorf("failed to create queue: %w", err)
 	}
 
 	// Create binding
 	if err := s.event.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
-		fmt.Println("binding error:", err)
-		// Handle the error appropriately
-		return
+		return fmt.Errorf("failed to create binding: %w", err)
 	}
 
 	// Consume messages
 	msgs, err := s.event.Consume(queue.Name, "auth_consumer", false)
 	if err != nil {
-		fmt.Println("consume error:", err)
-		// Handle the error appropriately
-		return
+		return fmt.Errorf("failed to consume messages: %w", err)
 	}
 
 	// Process messages
 	for message := range msgs {
 		go s.processUserMessage(message)
 	}
+	return nil
 }
 
 // ? just for signal
