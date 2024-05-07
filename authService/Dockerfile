@@ -18,13 +18,11 @@ WORKDIR /app
 COPY --from=builder /app/auth-svc .
 
 # Explicitly copy the configuration file into the container
-# COPY auth-svc/config ./config
+COPY config.yaml ./
+COPY database/migrations ./
+
 
 EXPOSE 5001
 
-ENV RABBITMQ_HOST rabbitmq
-ENV RABBITMQ_USER guest
-ENV RABBITMQ_PASSWORD guest
-ENV RABBITMQ_PORT 5672
 
 CMD ["./auth-svc"]
