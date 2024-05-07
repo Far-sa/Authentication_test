@@ -18,7 +18,7 @@ type MysqlDB struct {
 	logger ports.Logger
 }
 
-func New(config ports.Config, dbPool *sqlx.DB, logger ports.Logger) *MysqlDB {
+func New(dbPool *sqlx.DB, logger ports.Logger) *MysqlDB {
 	// dbConfig := config.GetDatabaseConfig()
 	// //db, err := sqlx.Connect("mysql", "root:password@(localhost:3306)/mysql_app")
 
@@ -39,7 +39,7 @@ func New(config ports.Config, dbPool *sqlx.DB, logger ports.Logger) *MysqlDB {
 	// 	log.Fatal("Database object is nil")
 	// }
 
-	return &MysqlDB{config: config, db: dbPool, logger: logger}
+	return &MysqlDB{db: dbPool, logger: logger}
 
 }
 

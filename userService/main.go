@@ -35,9 +35,9 @@ func main() {
 	}
 
 	//* Initialize repositories and services
-	userRepository := mysql.New(configAdapter, dbPool, zapLogger)
+	userRepository := mysql.New(dbPool, zapLogger)
 
-	mgr := migrator.New(dbPool, "database/migrations")
+	mgr := migrator.New(dbPool, "infrastructure/db/migrations")
 	mgr.MigrateUp()
 
 	log.Println("Migrations completed successfully!")

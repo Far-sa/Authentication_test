@@ -6,6 +6,7 @@ import (
 	"sync"
 	"user-svc/ports"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -25,12 +26,25 @@ func GetConnectionPool(cfg ports.Config) (*sqlx.DB, error) {
 
 	once.Do(func() {
 		var err error
-		dataSourceName := fmt.Sprintf("postgres://%s:%s@tcp(%s:%d)%s?sslmode=disable",
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
 			dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
-		pool, err = sqlx.Open("postgres", dataSourceName)
+
+		// fmt.Println("dsn :", dsn)
+
+		pool, err = sqlx.Open("mysql", dsn)
 		if err != nil {
 			log.Fatal("failed to connect to database:", err)
 		}
+
+		err = pool.Ping()
+		if err != nil {
+			log.Fatal("Error pinging database:", err)
+		}
+
+		if pool == nil {
+			log.Fatal("Database object is nil")
+		}
+
 		// Optional connection pool configuration (e.g., pool size)
 		pool.SetMaxOpenConns(10) // Set the maximum number of open connections
 		pool.SetMaxIdleConns(5)  // Set the maximum number of idle connections

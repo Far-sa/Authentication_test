@@ -50,7 +50,7 @@ func TestMysqlDB_CreateUser_Success(t *testing.T) {
 			// TODO: connection
 			// mysqlDB := mysql.MysqlDB{db: mockDB}
 			dbPool, _ := db.GetConnectionPool(mockConfig)
-			mysqlDB := mysql.New(mockConfig, dbPool, mockLogger)
+			mysqlDB := mysql.New(dbPool, mockLogger)
 
 			user := entity.User{
 				PhoneNumber: tt.expectedUser.PhoneNumber,

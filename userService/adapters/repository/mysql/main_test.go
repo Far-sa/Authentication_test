@@ -24,7 +24,7 @@ func TestNewMysqlDB(t *testing.T) {
 		User:     "test_user",
 		Password: "test_password",
 		Host:     "localhost",
-		Port:     3306,
+		Port:     "3306",
 		DBName:   "test_database",
 	}
 	_ = expectedDbConfig
@@ -36,7 +36,7 @@ func TestNewMysqlDB(t *testing.T) {
 
 	// Call the function under test
 	dbPool, _ := db.GetConnectionPool(mockConfig)
-	mysqlDB := mysql.New(mockConfig, dbPool, mockLogger)
+	mysqlDB := mysql.New(dbPool, mockLogger)
 
 	// Assertions
 	assert.NotNil(t, mysqlDB, "MysqlDB instance should not be nil")
