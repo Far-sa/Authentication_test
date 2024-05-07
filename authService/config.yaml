@@ -8,9 +8,9 @@ rabbitmq:
 
 
 db:
-  username: root
+  user: root
   password: password
   port: 3306
   host: db
-  database: authDB
+  dbName: authDB
   #url: postgresql://root:password@localhost:5432/authDB?sslmode=disable

@@ -3,7 +3,9 @@ package main
 import (
 	"auth-svc/adapters/delivery"
 	"auth-svc/adapters/messaging"
-	"auth-svc/adapters/repository"
+	"auth-svc/adapters/repository/db"
+	"auth-svc/adapters/repository/migrator"
+	"auth-svc/adapters/repository/postgres"
 	"auth-svc/internal/service"
 	"log"
 	"strings"
@@ -26,12 +28,12 @@ func init() {
 func main() {
 
 	//* load config
-	dbConfig := repository.Config{
-		Username: viper.GetString("db.username"),
+	dbConfig := db.Config{
+		User:     viper.GetString("db.user"),
 		Password: viper.GetString("db.password"),
-		Port:     viper.GetString("db.port"),
+		Port:     viper.GetInt("db.port"),
 		Host:     viper.GetString("db.host"),
-		DbName:   viper.GetString("db.database"),
+		DbName:   viper.GetString("db.dbName"),
 	}
 
 	rabbitConf := messaging.RabbitMQConfig{
@@ -41,21 +43,33 @@ func main() {
 		Port:     viper.GetString("rabbitmq.port"),
 	}
 
-	// Initialize Echo
-	e := echo.New()
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	dbPool, err := db.GetConnectionPool(dbConfig) // Use dedicated function (if using db package)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer dbPool.Close() // Close the pool when done (consider connection pool management)
 
-	authRepo := repository.NewAuthRepository(dbConfig)
+	authRepo := postgres.NewAuthRepository(dbPool)
+
+	mgr := migrator.NewMigrator(dbPool, "database/migrations")
+	mgr.MigrateUp()
+
+	log.Println("Migrations completed successfully!")
 
 	//connectionString := "amqp://guest:guest@localhost:5672/"
 	eventPublisher, err := messaging.NewRabbitMQClient(rabbitConf)
 	if err != nil {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
 	}
+
 	authSvc := service.NewAuthService(authRepo, eventPublisher)
 
 	authHandler := delivery.NewAuthHandler(authSvc)
+
+	// Initialize Echo
+	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
 
 	e.POST("/login", authHandler.Login)
 	// e.GET("/revoke-token", authHandler.RevokeToken)

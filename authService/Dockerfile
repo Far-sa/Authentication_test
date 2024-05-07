@@ -13,7 +13,6 @@ RUN go build -o /app/auth-svc
 # Runtime Steps
 FROM alpine:latest
 
-WORKDIR /app
 
 COPY --from=builder /app/auth-svc .
 
@@ -21,8 +20,6 @@ COPY --from=builder /app/auth-svc .
 COPY config.yaml ./
 COPY database/migrations ./
 
-
 EXPOSE 5001
-
 
 CMD ["./auth-svc"]
