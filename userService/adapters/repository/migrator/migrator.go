@@ -1,66 +1,68 @@
 package migrator
 
 import (
-	"database/sql"
-	"fmt"
-	"user-svc/ports"
+	"log"
 
-	migrate "github.com/rubenv/sql-migrate"
+	"github.com/jmoiron/sqlx"
+
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/mysql"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-type Migrator struct {
-	//db        sqlx.DB
-	config    ports.Config
-	migration *migrate.FileMigrationSource
+type Migrator interface {
+	MigrateUp() error
+	MigrateDown() error
 }
 
-func New(config ports.Config) Migrator {
+// TODO: clarify that exported or unexported properties
+type MysqlMigrator struct {
+	Db *sqlx.DB
+	//config    ports.Config
+	MigrationsDir string
+}
 
-	migrations := &migrate.FileMigrationSource{
-		Dir: "../../../infrastructure/db/migrations",
+func New(db *sqlx.DB, migrationsDir string) *MysqlMigrator {
+	return &MysqlMigrator{
+		Db:            db,
+		MigrationsDir: migrationsDir,
 	}
-
-	return Migrator{config: config, migration: migrations}
 }
 
-func (m Migrator) Up() error {
+func (m *MysqlMigrator) MigrateUp() error {
 
-	dbConf := m.config.GetDatabaseConfig()
-
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
-		dbConf.User, dbConf.Password, dbConf.Host, dbConf.Port, dbConf.DBName))
-
+	migrator, err := migrate.New(
+		"file://"+m.MigrationsDir, "")
 	if err != nil {
 		return err
 	}
 
-	_, eErr := migrate.Exec(db, "mysql", m.migration, migrate.Up)
-	if eErr != nil {
-		return eErr
+	if err := migrator.Up(); err != nil {
+		if err != migrate.ErrNoChange {
+			return err
+		}
+		log.Println("No migrations found to apply (Up)")
+	} else {
+		log.Printf("Up migrations applied successfully!")
 	}
-
 	return nil
 }
 
-func (m Migrator) Down() error {
+func (m *MysqlMigrator) MigrateDown() error {
 
-	dbConf := m.config.GetDatabaseConfig()
-
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
-		dbConf.User, dbConf.Password, dbConf.Host, dbConf.Port, dbConf.DBName))
-
+	migrator, err := migrate.New(
+		"file://"+m.MigrationsDir, "")
 	if err != nil {
 		return err
 	}
 
-	_, eErr := migrate.Exec(db, "mysql", m.migration, migrate.Down)
-	if eErr != nil {
-		return eErr
+	if err := migrator.Down(); err != nil {
+		if err != migrate.ErrNoChange {
+			return err
+		}
+		log.Println("No migrations found to apply (Down)")
+	} else {
+		log.Printf("Down migrations applied successfully!")
 	}
-
 	return nil
-}
-
-func (m Migrator) Status() {
-	//TODO
 }

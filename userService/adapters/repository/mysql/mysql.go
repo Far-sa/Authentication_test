@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"log"
 	"user-svc/internal/entity"
 	"user-svc/ports"
 
@@ -19,28 +18,28 @@ type MysqlDB struct {
 	logger ports.Logger
 }
 
-func New(config ports.Config, logger ports.Logger) *MysqlDB {
-	dbConfig := config.GetDatabaseConfig()
-	//db, err := sqlx.Connect("mysql", "root:password@(localhost:3306)/mysql_app")
+func New(config ports.Config, dbPool *sqlx.DB, logger ports.Logger) *MysqlDB {
+	// dbConfig := config.GetDatabaseConfig()
+	// //db, err := sqlx.Connect("mysql", "root:password@(localhost:3306)/mysql_app")
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
-		dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
+	// dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
+	// 	dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
 
-	db, err := sqlx.Open("mysql", dsn)
-	if err != nil {
-		logger.Error("Failed to open MySQL database", zap.Error(err))
-	}
+	// db, err := sqlx.Open("mysql", dsn)
+	// if err != nil {
+	// 	logger.Error("Failed to open MySQL database", zap.Error(err))
+	// }
 
-	err = db.Ping()
-	if err != nil {
-		log.Fatal("Error pinging database:", err)
-	}
+	// err = db.Ping()
+	// if err != nil {
+	// 	log.Fatal("Error pinging database:", err)
+	// }
 
-	if db == nil {
-		log.Fatal("Database object is nil")
-	}
+	// if db == nil {
+	// 	log.Fatal("Database object is nil")
+	// }
 
-	return &MysqlDB{config: config, db: db, logger: logger}
+	return &MysqlDB{config: config, db: dbPool, logger: logger}
 
 }
 
