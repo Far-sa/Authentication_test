@@ -1,38 +1,19 @@
-package repository
+package postgres
 
 import (
 	"auth-svc/internal/entity"
 	"database/sql"
-	"fmt"
-	"log"
 	"time"
 
 	_ "github.com/lib/pq"
 )
 
-type Config struct {
-	Username string
-	Password string
-	Port     string
-	Host     string
-	DbName   string
-}
-
 type postgresDB struct {
-	config Config
-	db     *sql.DB
+	db *sql.DB
 }
 
-func NewAuthRepository(config Config) postgresDB {
-
-	db, err := sql.Open("postgres", fmt.Sprintf("%s:%s@tcp(%s:%s)%s?sslmode=disable",
-		config.Username, config.Password, config.Host, config.Port, config.DbName))
-	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
-	}
-	defer db.Close()
-
-	return postgresDB{config: config, db: db}
+func NewAuthRepository(dbPool *sql.DB) postgresDB {
+	return postgresDB{db: dbPool}
 }
 
 func (db postgresDB) StoreToken(userID int, token string, expiration time.Time) error {
