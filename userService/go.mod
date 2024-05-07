@@ -58,10 +58,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-require (
-	github.com/golang-migrate/migrate v3.5.4+incompatible
-	github.com/golang-migrate/migrate/v4 v4.17.1
-)
+require github.com/golang-migrate/migrate/v4 v4.17.1
 
 require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
