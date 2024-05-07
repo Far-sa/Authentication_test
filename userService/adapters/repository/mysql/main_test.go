@@ -3,6 +3,7 @@ package mysql_test
 import (
 	"database/sql"
 	"testing"
+	"user-svc/adapters/repository/db"
 	"user-svc/adapters/repository/mysql"
 	"user-svc/ports"
 	mocks "user-svc/ports/mock"
@@ -34,7 +35,8 @@ func TestNewMysqlDB(t *testing.T) {
 	mockLogger.On("Error", mock.AnythingOfType("string"), mock.Anything).Once()
 
 	// Call the function under test
-	mysqlDB := mysql.New(mockConfig, mockLogger)
+	dbPool, _ := db.GetConnectionPool(mockConfig)
+	mysqlDB := mysql.New(mockConfig, dbPool, mockLogger)
 
 	// Assertions
 	assert.NotNil(t, mysqlDB, "MysqlDB instance should not be nil")

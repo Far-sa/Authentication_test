@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"user-svc/adapters/repository/db"
 	"user-svc/adapters/repository/mysql"
 	"user-svc/internal/entity"
 	mocks "user-svc/ports/mock"
@@ -48,7 +49,8 @@ func TestMysqlDB_CreateUser_Success(t *testing.T) {
 
 			// TODO: connection
 			// mysqlDB := mysql.MysqlDB{db: mockDB}
-			mysqlDB := mysql.New(mockConfig, mockLogger)
+			dbPool, _ := db.GetConnectionPool(mockConfig)
+			mysqlDB := mysql.New(mockConfig, dbPool, mockLogger)
 
 			user := entity.User{
 				PhoneNumber: tt.expectedUser.PhoneNumber,
