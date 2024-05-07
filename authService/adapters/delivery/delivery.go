@@ -1,8 +1,9 @@
 package delivery
 
 import (
+	"auth-svc/internal/param"
 	"auth-svc/internal/ports"
-	"fmt"
+	"net/http"
 
 	"github.com/labstack/echo/v4"
 )
@@ -19,21 +20,19 @@ func NewAuthHandler(authService ports.AuthService) authHandler {
 
 func (h authHandler) Login(c echo.Context) error {
 
-	fmt.Println("not implemented")
-	return nil
-	// var req param.LoginRequest
-	// if err := c.Bind(&req); err != nil {
-	// 	return echo.NewHTTPError(http.StatusBadRequest)
-	// }
+	var req param.LoginRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
 
-	// //TODO: validate login
+	//TODO: validate login
 
-	// resp, err := h.authService.Login(c.Request().Context(), req)
-	// if err != nil {
-	// 	return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	// }
+	resp, err := h.authService.Login(c.Request().Context(), req)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
 
-	// return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, resp)
 }
 
 // RevokeTokenHandler handles requests to revoke a token
