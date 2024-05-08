@@ -71,7 +71,7 @@ func TestRegisterHandler(t *testing.T) {
 			}
 
 			//prometheusAdapter := metrics.NewPrometheus()
-			userSvc := userService.NewService(userRepoMock, publisher, zapLogger)
+			userSvc := userService.NewService(configAdapter, userRepoMock, publisher, zapLogger)
 
 			userHandler := New(configAdapter, userSvc, zapLogger)
 

@@ -32,6 +32,7 @@ func TestRegisterUser(t *testing.T) {
 	mockUserRepo := mocks.NewMockUserRepository()
 	mockEventPublisher := mocks.NewMockEventPublisher()
 	mockLogger := mocks.NewMockLogger()
+	mockConfig := mocks.NewMockConfig()
 
 	cases := []testCase{
 		{
@@ -82,7 +83,7 @@ func TestRegisterUser(t *testing.T) {
 
 			mockLogger.On("Info", mock.AnythingOfType("string"), mock.Anything).Once()
 
-			service := userService.NewService(mockUserRepo, mockEventPublisher, mockLogger)
+			service := userService.NewService(mockConfig, mockUserRepo, mockEventPublisher, mockLogger)
 
 			//* ACT
 			resp, err := service.Register(ctx, c.req)

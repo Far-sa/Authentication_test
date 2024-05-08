@@ -13,3 +13,9 @@ type EventPublisher interface {
 	Publish(ctx context.Context, exchange, routingKey string, options amqp.Publishing) error
 	//Consume(ctx context.Context, queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error)
 }
+
+//? RabbitMQClient defines the interface for core RabbitMQ interactions
+// type RabbitMQClient interface {
+//   Publish(exchange, routingKey string, body []byte) error
+//   Subscribe(queueName, routingKey string, handler func(msg []byte) error) error
+// }

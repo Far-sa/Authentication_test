@@ -13,6 +13,18 @@ rabbitmq:
   password: guest
   host: rabbitmq
   port: 5672
+  exchanges:
+    - name: "user_events"  # Exchange used by Service User
+      type: "topic"  # Exchange type
+      durable: true
+  queues:
+    - name: "user_registrations"  
+      durable: true  # Set queue to be durable (survives restarts)
+      autodelete: false #
+  bindings:
+    - queue: "user_registrations"
+      exchange: "user_events"  # Bind queue to the declared exchange
+      routing_key: "user.registered"  # Wildcard routing key for all user events - order.*
   #url: amqp://guest:guest@rabbitmq:5672/
 
 constants:

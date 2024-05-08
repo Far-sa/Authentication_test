@@ -21,6 +21,7 @@ type Config struct{}
 
 // Service represents the usecase for user operations
 type Service struct {
+	Config         ports.Config
 	userRepo       ports.UserRepository
 	eventPublisher ports.EventPublisher
 	logger         ports.Logger
@@ -28,8 +29,8 @@ type Service struct {
 }
 
 // NewService creates a new instance of Service
-func NewService(repo ports.UserRepository, publisher ports.EventPublisher, logger ports.Logger) Service {
-	return Service{userRepo: repo, eventPublisher: publisher, logger: logger}
+func NewService(cfg ports.Config, repo ports.UserRepository, publisher ports.EventPublisher, logger ports.Logger) Service {
+	return Service{Config: cfg, userRepo: repo, eventPublisher: publisher, logger: logger}
 }
 
 // RegisterUser handles user registration
@@ -72,11 +73,13 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 	}, nil
 }
 
-func (us Service) Login(user entity.User) error {
-	panic("unimplemented")
-}
+// func (us Service) Login(user entity.User) error {
+// 	panic("unimplemented")
+// }
 
 func (us Service) publishUserData(ctx context.Context, createdUser interface{}) error {
+
+	fmt.Println("exchange name:", us.Config.GetBrokerConfig().Exchanges[0].Name)
 
 	if err := us.eventPublisher.DeclareExchange("user_data_exchange", "topic"); err != nil {
 		return fmt.Errorf("failed to declare exchange: %w", err)

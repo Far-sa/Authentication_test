@@ -22,12 +22,37 @@ type DatabaseConfig struct {
 type HTTPConfig struct {
 	Port int `yaml:"port"`
 }
-type BrokerConfig struct {
-	User     string
-	Password string
-	Host     string
-	Port     string
+
+// !!
+type Exchanges struct {
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Durable bool   `json:"durable"`
 }
+
+type Queues struct {
+	Name       string
+	Durable    bool
+	AutoDelete bool
+}
+
+type Binding struct {
+	Queue      string
+	Exchange   []Exchanges
+	RoutingKey string
+}
+
+type BrokerConfig struct {
+	User      string
+	Password  string
+	Host      string
+	Port      string
+	Exchanges []Exchanges
+	Queues    []Queues
+	Bindings  []Binding
+}
+
+//!!
 
 // Constants struct holds constant configuration values
 type Constants struct {

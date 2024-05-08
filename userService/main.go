@@ -47,7 +47,7 @@ func main() {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
 	}
 
-	userService := userService.NewService(userRepository, publisher, zapLogger)
+	userService := userService.NewService(configAdapter, userRepository, publisher, zapLogger)
 
 	// ozzoValidator := validator.New(userRepository)
 
