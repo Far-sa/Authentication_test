@@ -3,14 +3,43 @@ rabbitmq:
   user: guest
   password: guest
   port: 5672
+  exchanges:
+    - name: "user_events"  # Exchange used by Service User
+      type: "topic"  # Exchange type
+      durable: true
+  queues:
+    - name: "user_registrations"  
+      durable: true  # Set queue to be durable (survives restarts)
+      autodelete: false #
+  bindings:
+    - queue: "user_registrations"
+      exchange: "user_events"  # Bind queue to the declared exchange
+      routing_key: "user.registered"  # Wildcard routing key for all user events - order.*
   #url: amqp://guest:guest@rabbitmq:5672/
 
+http_server:
+  HTTP_PORT: 5000
 
-
-db:
+database:
   user: root
   password: password
   port: 3306
   host: db
   dbName: authDB
   #url: postgresql://root:password@localhost:5432/authDB?sslmode=disable
+
+constants:
+  maxItemsPerPage: 20
+  maxRetryAttempts: 3
+
+statics:
+  welcomeMessage: "Welcome to our user service!"
+  defaultUserRole: "user"
+
+logger:
+  fileName: "./data/logs/log.json"
+  localtime: false
+  mazSize: 50
+  maxBackups: 3
+  maxAge: 28
+  compass: true
