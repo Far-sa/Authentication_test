@@ -80,18 +80,22 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 func (us Service) publishUserData(ctx context.Context, createdUser interface{}) error {
 
 	fmt.Println("exchange name:", us.Config.GetBrokerConfig().Exchanges[0].Name)
+	exchangeName := us.Config.GetBrokerConfig().Exchanges[0].Name
+	Topic := us.Config.GetBrokerConfig().Exchanges[0].Type
+	queueName := us.Config.GetBrokerConfig().Queues[0].Name
+	routeKey := us.Config.GetBrokerConfig().Bindings[0].RoutingKey
 
-	if err := us.eventPublisher.DeclareExchange("user_data_exchange", "topic"); err != nil {
+	if err := us.eventPublisher.DeclareExchange(exchangeName, Topic); err != nil {
 		return fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
 	// Declare Queue
-	queue, err := us.eventPublisher.CreateQueue("auth_queue", true, false)
+	_, err := us.eventPublisher.CreateQueue(queueName, true, false)
 	if err != nil {
 		return fmt.Errorf("failed to create queue: %w", err)
 	}
 
-	if err := us.eventPublisher.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
+	if err := us.eventPublisher.CreateBinding(queueName, routeKey, exchangeName); err != nil {
 		return fmt.Errorf("failed to create binding: %w", err)
 	}
 
@@ -100,7 +104,7 @@ func (us Service) publishUserData(ctx context.Context, createdUser interface{}) 
 		return fmt.Errorf("failed to serialize user data: %w", err)
 	}
 
-	if err := us.eventPublisher.Publish(ctx, "user_data_exchange", "auth_routing_key", amqp091.Publishing{
+	if err := us.eventPublisher.Publish(ctx, exchangeName, routeKey, amqp091.Publishing{
 		ContentType:   "text/plain",
 		DeliveryMode:  amqp091.Persistent,
 		Body:          body,
