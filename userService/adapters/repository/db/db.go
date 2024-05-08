@@ -10,9 +10,9 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type Config struct {
-	config ports.Config
-}
+// type Config struct {
+// 	config ports.Config
+// }
 
 var (
 	once sync.Once
@@ -26,19 +26,19 @@ func GetConnectionPool(cfg ports.Config) (*sqlx.DB, error) {
 
 	once.Do(func() {
 		var err error
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
+		dsn := fmt.Sprintf("mysql://%s:%s@tcp(%s:%s)/%s",
 			dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
 
-		// fmt.Println("dsn :", dsn)
+		fmt.Println("dsn :", dsn)
 
 		pool, err = sqlx.Open("mysql", dsn)
 		if err != nil {
 			log.Fatal("failed to connect to database:", err)
 		}
 
-		err = pool.Ping()
-		if err != nil {
-			log.Fatal("Error pinging database:", err)
+		if err := pool.Ping(); err != nil {
+			log.Printf("Error pinging database: %v", err)
+			// Additional error handling or cleanup can be added here if needed
 		}
 
 		if pool == nil {

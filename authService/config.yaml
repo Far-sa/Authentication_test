@@ -23,11 +23,11 @@ http_server:
   HTTP_PORT: 5000
 
 database:
-  user: root
+  user: postgres
   password: password
-  port: 3306
-  host: db
-  dbName: authDB
+  port: 5432
+  host: postgres
+  dbName: authdb
   #url: postgresql://root:password@localhost:5432/authDB?sslmode=disable
 
 constants:
