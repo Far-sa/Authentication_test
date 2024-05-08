@@ -69,7 +69,7 @@ func main() {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
 	}
 
-	authSvc := service.NewAuthService(authRepo, eventPublisher)
+	authSvc := service.NewAuthService(configAdapter, authRepo, eventPublisher)
 
 	authHandler := delivery.NewAuthHandler(authSvc)
 

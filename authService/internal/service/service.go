@@ -23,6 +23,7 @@ import (
 // 	RefreshTokenExpirationDuration time.Duration
 // }
 
+// TODO: add to config
 const (
 	JwtSignKey                     = "jwt-secret"
 	AccessTokenSubject             = "at"
@@ -32,6 +33,7 @@ const (
 )
 
 type authService struct {
+	config   ports.Config
 	authRepo ports.AuthRepository
 	event    ports.EventPublisher
 }
@@ -44,8 +46,8 @@ type User struct {
 }
 
 // NewTokenHandler creates a new TokenHandler with the given authService
-func NewAuthService(authRepo ports.AuthRepository, event ports.EventPublisher) authService {
-	return authService{authRepo: authRepo}
+func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event ports.EventPublisher) authService {
+	return authService{config: config, authRepo: authRepo}
 }
 
 func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.LoginResponse, error) {
@@ -98,23 +100,24 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 
 func (s authService) consumeUserMessages() error {
 	// Declare exchange (if needed)
-	if err := s.event.DeclareExchange("user_data_exchange", "topic"); err != nil {
-		return fmt.Errorf("failed to declare exchange: %w", err)
-	}
+	// if err := s.event.DeclareExchange("user_data_exchange", "topic"); err != nil {
+	// 	return fmt.Errorf("failed to declare exchange: %w", err)
+	// }
 
-	// Create queue
-	queue, err := s.event.CreateQueue("auth_queue", true, false)
-	if err != nil {
-		return fmt.Errorf("failed to create queue: %w", err)
-	}
+	// // Create queue
+	// queue, err := s.event.CreateQueue("auth_queue", true, false)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create queue: %w", err)
+	// }
 
-	// Create binding
-	if err := s.event.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
-		return fmt.Errorf("failed to create binding: %w", err)
-	}
+	// // Create binding
+	// if err := s.event.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
+	// 	return fmt.Errorf("failed to create binding: %w", err)
+	// }
 
-	// Consume messages
-	msgs, err := s.event.Consume(queue.Name, "auth_consumer", false)
+	queueName := s.config.GetBrokerConfig().Queues[0].Name
+	// Consume messages -need queue name and routing key
+	msgs, err := s.event.Consume(queueName, "auth_consumer", false)
 	if err != nil {
 		return fmt.Errorf("failed to consume messages: %w", err)
 	}

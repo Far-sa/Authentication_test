@@ -74,7 +74,7 @@ func (rc RabbitClient) CreateQueue(queueName string, durable, autodelete bool) (
 	return q, err
 }
 
-// * for bindig echange to queue
+// * for binding exchange to queue
 func (rc RabbitClient) CreateBinding(name, binding, exchange string) error {
 	return rc.ch.QueueBind(name, binding, exchange, false, nil)
 }

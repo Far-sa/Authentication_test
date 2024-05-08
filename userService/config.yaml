@@ -23,7 +23,9 @@ rabbitmq:
       autodelete: false #
   bindings:
     - queue: "user_registrations"
-      exchange: "user_events"  # Bind queue to the declared exchange
+      exchange:  # Bind queue to the declared exchange
+        name: "user_events"
+        type: "topic"
       routing_key: "user.registered"  # Wildcard routing key for all user events - order.*
   #url: amqp://guest:guest@rabbitmq:5672/
 
