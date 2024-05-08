@@ -1,6 +1,7 @@
 package messaging
 
 import (
+	"auth-svc/internal/ports"
 	"context"
 	"fmt"
 	"log"
@@ -8,23 +9,25 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type RabbitMQConfig struct {
-	Host     string
-	User     string
-	Password string
-	Port     string
-	//Url string
-}
+// type RabbitMQConfig struct {
+// 	Host     string
+// 	User     string
+// 	Password string
+// 	Port     string
+// 	//Url string
+// }
 
 type RabbitClient struct {
-	config RabbitMQConfig
+	config ports.Config
 	conn   *amqp.Connection
 	ch     *amqp.Channel
 }
 
-func NewRabbitMQClient(config RabbitMQConfig) (RabbitClient, error) {
+func NewRabbitMQClient(config ports.Config) (RabbitClient, error) {
 
-	dsn := fmt.Sprintf("amqp://%s:%s@%s:%s/", config.User, config.Password, config.Host, config.Port)
+	cfg := config.GetBrokerConfig()
+
+	dsn := fmt.Sprintf("amqp://%s:%s@%s:%s/", cfg.User, cfg.Password, cfg.Host, cfg.Port)
 
 	conn, err := amqp.Dial(dsn)
 	if err != nil {

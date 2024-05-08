@@ -1,12 +1,14 @@
 package main
 
 import (
+	"auth-svc/adapters/config"
 	"auth-svc/adapters/delivery"
 	"auth-svc/adapters/messaging"
 	"auth-svc/adapters/repository/db"
 	"auth-svc/adapters/repository/migrator"
 	"auth-svc/adapters/repository/postgres"
 	"auth-svc/internal/service"
+	"fmt"
 	"log"
 	"strings"
 
@@ -28,22 +30,27 @@ func init() {
 func main() {
 
 	//* load config
-	dbConfig := db.Config{
-		User:     viper.GetString("db.user"),
-		Password: viper.GetString("db.password"),
-		Port:     viper.GetInt("db.port"),
-		Host:     viper.GetString("db.host"),
-		DbName:   viper.GetString("db.dbName"),
+	// dbConfig := db.Config{
+	// 	User:     viper.GetString("db.user"),
+	// 	Password: viper.GetString("db.password"),
+	// 	Port:     viper.GetInt("db.port"),
+	// 	Host:     viper.GetString("db.host"),
+	// 	DbName:   viper.GetString("db.dbName"),
+	// }
+
+	// rabbitConf := messaging.RabbitMQConfig{
+	// 	Host:     viper.GetString("rabbitmq.host"),
+	// 	User:     viper.GetString("rabbitmq.user"),
+	// 	Password: viper.GetString("rabbitmq.password"),
+	// 	Port:     viper.GetString("rabbitmq.port"),
+	// }
+
+	configAdapter, err := config.NewViperAdapter()
+	if err != nil {
+		fmt.Println("failed to load configuration", err)
 	}
 
-	rabbitConf := messaging.RabbitMQConfig{
-		Host:     viper.GetString("rabbitmq.host"),
-		User:     viper.GetString("rabbitmq.user"),
-		Password: viper.GetString("rabbitmq.password"),
-		Port:     viper.GetString("rabbitmq.port"),
-	}
-
-	dbPool, err := db.GetConnectionPool(dbConfig) // Use dedicated function (if using db package)
+	dbPool, err := db.GetConnectionPool(configAdapter) // Use dedicated function (if using db package)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
@@ -57,7 +64,7 @@ func main() {
 	log.Println("Migrations completed successfully!")
 
 	//connectionString := "amqp://guest:guest@localhost:5672/"
-	eventPublisher, err := messaging.NewRabbitMQClient(rabbitConf)
+	eventPublisher, err := messaging.NewRabbitMQClient(configAdapter)
 	if err != nil {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
 	}
