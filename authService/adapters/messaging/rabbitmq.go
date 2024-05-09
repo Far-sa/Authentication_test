@@ -9,14 +9,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// type RabbitMQConfig struct {
-// 	Host     string
-// 	User     string
-// 	Password string
-// 	Port     string
-// 	//Url string
-// }
-
 type RabbitClient struct {
 	config ports.Config
 	conn   *amqp.Connection
@@ -28,6 +20,8 @@ func NewRabbitMQClient(config ports.Config) (RabbitClient, error) {
 	cfg := config.GetBrokerConfig()
 
 	dsn := fmt.Sprintf("amqp://%s:%s@%s:%s/", cfg.User, cfg.Password, cfg.Host, cfg.Port)
+
+	fmt.Println("dsn auth-svc: ", dsn)
 
 	conn, err := amqp.Dial(dsn)
 	if err != nil {
@@ -78,6 +72,11 @@ func (rc RabbitClient) CreateQueue(queueName string, durable, autodelete bool) (
 func (rc RabbitClient) CreateBinding(name, binding, exchange string) error {
 	return rc.ch.QueueBind(name, binding, exchange, false, nil)
 }
+
+// type ConsumeResult struct {
+// 	Messages <-chan amqp.Delivery
+// 	Closed   bool
+// }
 
 func (rc RabbitClient) Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {
 	return rc.ch.Consume(queue, consumer, autoAck, false, false, false, nil)

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"golang.org/x/crypto/bcrypt"
 	//"github.com/dgrijalva/jwt-go"
 )
@@ -58,18 +57,22 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 		return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	//! Consume user info messages from RabbitMQ
-	go s.consumeUserMessages()
+	// RabbitMQ configuration (replace placeholders with your configuration)
+	queueName := s.config.GetBrokerConfig().Queues[0].Name
+	msgs, err := s.event.Consume(queueName, "auth_consumer", false)
+	if err != nil {
+		return param.LoginResponse{}, fmt.Errorf("failed to consume messages: %w", err)
+	}
 
-	// Wait for user data to be available before proceeding
-	select {
-	case <-time.After(5 * time.Second): // Timeout after 5 seconds (adjust as needed)
-		return param.LoginResponse{}, fmt.Errorf("timeout waiting for user data")
-	case userData := <-userMsgReceived: // Receive user data from the channel
-		// Proceed with user data
-		fmt.Printf("Received user data in Login function: %+v\n", userData)
+	// Process messages sequentially and validate credentials
+	for msg := range msgs {
+		var userData User
+		if err := json.Unmarshal([]byte(msg.Body), &userData); err != nil {
+			fmt.Println("failed to unmarshal message:", err)
+			continue
+		}
 
-		// Validate user credentials
+		// Validate credentials (replace with your validation logic)
 		if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
 			return param.LoginResponse{}, fmt.Errorf("username/password incorrect")
 		}
@@ -89,74 +92,41 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 			time.Now().Add(72*time.Second)); err != nil {
 			fmt.Println("Error store token", err)
 		}
-
 		// Return login response with tokens
 		return param.LoginResponse{
-			User:   param.UserInfo{ID: userData.ID, Email: userData.Email},
+			User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email},
 			Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
 		}, nil
 	}
+	return param.LoginResponse{}, fmt.Errorf("username/password incorrect")
+
 }
 
-func (s authService) consumeUserMessages() error {
-	// Declare exchange (if needed)
-	// if err := s.event.DeclareExchange("user_data_exchange", "topic"); err != nil {
-	// 	return fmt.Errorf("failed to declare exchange: %w", err)
-	// }
+//* Declare exchange (if needed)
+// if err := s.event.DeclareExchange("user_data_exchange", "topic"); err != nil {
+// 	return fmt.Errorf("failed to declare exchange: %w", err)
+// }
 
-	// // Create queue
-	// queue, err := s.event.CreateQueue("auth_queue", true, false)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create queue: %w", err)
-	// }
+//* Create queue
+// queue, err := s.event.CreateQueue("auth_queue", true, false)
+// if err != nil {
+// 	return fmt.Errorf("failed to create queue: %w", err)
+// }
 
-	// // Create binding
-	// if err := s.event.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
-	// 	return fmt.Errorf("failed to create binding: %w", err)
-	// }
+// exchangeName := s.config.GetBrokerConfig().Exchanges[0].Name
+// routeKey := s.config.GetBrokerConfig().Bindings[0].RoutingKey
 
-	queueName := s.config.GetBrokerConfig().Queues[0].Name
-	// Consume messages -need queue name and routing key
-	msgs, err := s.event.Consume(queueName, "auth_consumer", false)
-	if err != nil {
-		return fmt.Errorf("failed to consume messages: %w", err)
-	}
+//* Create binding
+// if err := s.event.CreateBinding(queueName, routeKey, exchangeName); err != nil {
+// 	return fmt.Errorf("failed to create binding: %w", err)
+// }
 
-	// Process messages
-	for message := range msgs {
-		go s.processUserMessage(message)
-	}
-	return nil
-}
+// Consume messages -need queue name and routing key
 
 // ? just for signal
 // var userMsgReceived = make(chan struct{})
-// TODO: move global channel to writer
-var userMsgReceived = make(chan User)
 
-func (s authService) processUserMessage(message amqp.Delivery) {
-	// Unmarshal the message body into the user struct
-	var user User
-	if err := json.Unmarshal(message.Body, &user); err != nil {
-		fmt.Println("failed to unmarshal message:", err)
-		// Handle the error appropriately (e.g., logging, error reporting)
-		// Acknowledge or reject the message, depending on your requirements
-		message.Ack(false)
-		return
-	}
-
-	// Process the user data
-	fmt.Printf("Received user data: %+v\n", user)
-
-	// Signal that user data is available
-	go func() {
-		userMsgReceived <- user
-		//userMsgReceived <- struct{}{}
-	}()
-
-	// Acknowledge the message to RabbitMQ to indicate successful processing
-	message.Ack(false)
-}
+// ! writer
 
 // ! helper function
 func HashPassword(password string) (string, error) {
@@ -226,6 +196,57 @@ func (s authService) createToken(userID uint, subject string, expiresDuration ti
 
 	return tokenStr, nil
 }
+
+//!-------->
+// Define a type for the message
+// type UserMessage struct {
+//     CorrelationId string
+//     // Add other fields as needed
+// }
+
+// // Modify consumeUserMessages to return a read-only channel of UserMessage
+// func (s authService) consumeUserMessages() <-chan UserMessage {
+//     // Create a channel for sending user messages
+//     userMsgs := make(chan UserMessage)
+
+//     go func() {
+//         defer close(userMsgs)
+
+//         queueName := s.config.GetBrokerConfig().Queues[0].Name
+//         msgs, err := s.event.Consume(queueName, "auth_consumer", false)
+//         if err != nil {
+//             log.Printf("failed to consume messages: %v", err)
+//             return
+//         }
+
+//         for message := range msgs {
+//             // Extract relevant information from the message and send it through the channel
+//             userMsg := UserMessage{
+//                 CorrelationId: message.CorrelationId,
+//                 // Extract other fields as needed
+//             }
+//             userMsgs <- userMsg
+//         }
+//     }()
+
+//     return userMsgs
+// }
+
+// Define a function to process user messages
+// func (s authService) processUserMessages(userMsgs <-chan UserMessage) {
+//     for userMsg := range userMsgs {
+//         // Process the user message
+//         log.Printf("Processing user message with CorrelationId: %s\n", userMsg.CorrelationId)
+
+//         // Perform any necessary operations with the user message, such as database updates, authentication, etc.
+//         // Example:
+//         // if err := s.processUserMessage(userMsg); err != nil {
+//         //     log.Printf("Error processing user message: %v\n", err)
+//         // }
+//     }
+// }
+
+//! ------>
 
 // func (s authService) AddRevokedToken(tokenID string) error {
 // 	panic("")

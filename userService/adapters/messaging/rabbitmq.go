@@ -22,6 +22,8 @@ func NewRabbitMQClient(config ports.Config) (RabbitClient, error) {
 	rabbitConfig := config.GetBrokerConfig()
 	dsn := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitConfig.User, rabbitConfig.Password, rabbitConfig.Host, rabbitConfig.Port)
 
+	fmt.Println("dsn user-svc: ", dsn)
+
 	conn, err := amqp.Dial(dsn)
 	if err != nil {
 		log.Fatalf("Error connecting to RabbitMQ: %s", err)

@@ -45,7 +45,7 @@ services:
       - ./data/rabbitmq-data:/var/lib/rabbitmq
     restart: always
     networks:
-      - rabbitmq_network
+      - rabbitmq-network
       # - auth-network
       # - user-network
 
@@ -112,7 +112,7 @@ services:
       - "traefik.http.routers.authService.rule=Host(`localhost`)" # auth.example.com
     networks:
       - auth-network
-      - rabbitmq_network
+      - rabbitmq-network
 
 
   userservice:
@@ -143,7 +143,7 @@ services:
     restart: always
     networks:
       - user-network
-      - rabbitmq_network
+      - rabbitmq-network
 
     # labels:
     #   - "traefik.enable=true"
@@ -232,7 +232,7 @@ networks:
   user-network:
     external: true
     driver: bridge
-  rabbitmq_network:
+  rabbitmq-network:
     external: true
     driver: bridge
 

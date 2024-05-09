@@ -1,7 +1,7 @@
 rabbitmq:
-  host: rabbitmq
   user: guest
   password: guest
+  host: rabbitmq
   port: 5672
   exchanges:
     - name: "user_events"  # Exchange used by Service User

@@ -22,6 +22,10 @@ type AuthService interface {
 	Login(ctx context.Context, user param.LoginRequest) (param.LoginResponse, error)
 }
 
+//	type ConsumeResult struct {
+//		Messages <-chan amqp.Delivery
+//		Closed   bool
+//	}
 type EventPublisher interface {
 	DeclareExchange(name, kind string) error
 	CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error)
