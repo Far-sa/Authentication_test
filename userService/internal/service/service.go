@@ -64,6 +64,8 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 
 	us.logger.Info("User created successfully", zap.Any("user", createdUser))
 
+	fmt.Println("created user is: ", createdUser)
+
 	return param.RegisterResponse{
 		User: param.UserInfo{
 			ID:          createdUser.ID,

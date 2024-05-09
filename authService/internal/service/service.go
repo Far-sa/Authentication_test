@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/rabbitmq/amqp091-go"
 	"golang.org/x/crypto/bcrypt"
 	//"github.com/dgrijalva/jwt-go"
 )
@@ -34,7 +35,8 @@ const (
 type authService struct {
 	config   ports.Config
 	authRepo ports.AuthRepository
-	event    ports.EventPublisher
+	event    ports.RabbitMQ
+	// event    ports.EventPublisher
 }
 
 // User represents the user data received from the message
@@ -51,77 +53,174 @@ func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event po
 
 func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.LoginResponse, error) {
 
+	//! sequntial
 	// Hash the password from the incoming request
 	hashedPassword, err := HashPassword(user.Password)
 	if err != nil {
 		return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// RabbitMQ configuration (replace placeholders with your configuration)
 	queueName := s.config.GetBrokerConfig().Queues[0].Name
-	msgs, err := s.event.Consume(queueName, "auth_consumer", false)
-	if err != nil {
-		return param.LoginResponse{}, fmt.Errorf("failed to consume messages: %w", err)
+	exName := s.config.GetBrokerConfig().Exchanges[0].Name
+	routeKey := s.config.GetBrokerConfig().Bindings[0].RoutingKey
+
+	var userData User
+	var accessToken, refreshToken string
+	userData = User{}
+
+	// q, err := s.event.CreateQueue(queueName)
+	// if err != nil {
+	// 	fmt.Println("Error binding queue", err)
+
+	// }
+
+	if err := s.event.BindQueue(queueName, exName, routeKey); err != nil {
+		fmt.Println("Error binding queue", err)
 	}
 
-	// Process messages sequentially and validate credentials
-	for msg := range msgs {
-		var userData User
-		if err := json.Unmarshal([]byte(msg.Body), &userData); err != nil {
-			fmt.Println("failed to unmarshal message:", err)
-			continue
+	err = s.event.Consume(ctx, queueName, func(msg amqp091.Delivery) error {
+		err := json.Unmarshal(msg.Body, &userData)
+		if err != nil {
+			fmt.Printf("Error unmarshalling message: %v\n", err)
+			return err
 		}
 
-		// Validate credentials (replace with your validation logic)
 		if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
-			return param.LoginResponse{}, fmt.Errorf("username/password incorrect")
+			return err
 		}
 
-		// Create tokens
-		accessToken, err := s.createAccessToken(userData)
+		accessToken, err = s.createAccessToken(userData)
 		if err != nil {
-			return param.LoginResponse{}, fmt.Errorf("failed to create access token: %w", err)
+			return err
 		}
 
-		refreshToken, err := s.refreshAccessToken(userData)
+		refreshToken, err = s.refreshAccessToken(userData)
 		if err != nil {
-			return param.LoginResponse{}, fmt.Errorf("failed to refresh access token: %w", err)
+			return err
 		}
 
-		if err := s.authRepo.StoreToken(int(userData.ID), accessToken,
-			time.Now().Add(72*time.Second)); err != nil {
-			fmt.Println("Error store token", err)
+		if err := s.authRepo.StoreToken(int(userData.ID), accessToken, time.Now().Add(72*time.Second)); err != nil {
+			fmt.Println("Error storing token:", err)
 		}
-		// Return login response with tokens
-		return param.LoginResponse{
-			User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email},
-			Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
-		}, nil
+
+		err = msg.Ack(false)
+		if err != nil {
+			fmt.Printf("Error acknowledging message: %v\n", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		fmt.Println("Error consuming messages:", err)
 	}
-	return param.LoginResponse{}, fmt.Errorf("username/password incorrect")
 
+	return param.LoginResponse{
+		User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email},
+		Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
+	}, nil
+
+	//!----> handle wirh go routines
+	// Hash the password from the incoming request
+	// hashedPassword, err := HashPassword(user.Password)
+	// if err != nil {
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
+	// }
+
+	// ctxWithCan, cancel := context.WithCancel(context.Background())
+	// defer cancel()
+
+	// wg := sync.WaitGroup{}
+	// wg.Add(1)
+
+	// queueName := s.config.GetBrokerConfig().Queues[0].Name
+
+	// // Initiate message consumption in a background goroutine
+	// go func() {
+	// 	defer wg.Done()
+
+	// 	cErr := s.event.Consume(ctxWithCan, queueName, func(msg amqp.Delivery) error {
+	// 		var userData User
+	// 		err := json.Unmarshal(msg.Body, &userData)
+	// 		if err != nil {
+	// 			fmt.Printf("Error unmarshalling message: %v\n", err)
+	// 			// Optional: You can potentially re-queue the message here
+	// 			return err
+	// 		}
+
+	// 		// Validate credentials against data from the message
+	// 		if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
+	// 			return err
+	// 		}
+
+	// 		// ... rest of your processing logic using userData ...
+	// 		accessToken, err := s.createAccessToken(userData) // Assuming a helper function
+	// 		if err != nil {
+	// 			return err
+	// 		}
+
+	// 		refreshToken, err := s.refreshAccessToken(userData) // Assuming a helper function
+	// 		if err != nil {
+	// 			return err
+	// 		}
+
+	// 		if err := s.authRepo.StoreToken(int(userData.ID), accessToken,
+	// 			time.Now().Add(72*time.Second)); err != nil {
+	// 			fmt.Println("Error store token", err)
+	// 		}
+
+	// 		// Acknowledge the message after successful processing
+	// 		err = msg.Ack(false)
+	// 		if err != nil {
+	// 			fmt.Printf("Error acknowledging message: %v\n", err)
+	// 		}
+	// 		return err
+	// 	})
+	// 	if cErr != nil {
+	// 		fmt.Println("Error consuming messages:", cErr)
+	// 		return cErr // Propagate error from Consume
+	// 	}
+	// }()
+
+	// // Login function doesn't return anything until message processing finishes
+	// wg.Wait() // Wait for the goroutine, blocking the login call
+
+	// // Consider redesigning Login flow to be asynchronous (optional)
+
+	// // Handle potential errors from the goroutine (optional)
+	// if err != nil {
+	// 	return param.LoginResponse{}, fmt.Errorf("login processing failed: %w", err)
+	// }
+
+	// // Placeholder for successful login response (assuming success from the goroutine)
+	// return param.LoginResponse{
+	// 	User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email}, // Might need modification
+	// 	Tokens: param.Tokens{AccessToken: "", RefreshToken: ""},              // Placeholder values
+	// }, nil
+	//!----->
 }
 
-//* Declare exchange (if needed)
-// if err := s.event.DeclareExchange("user_data_exchange", "topic"); err != nil {
-// 	return fmt.Errorf("failed to declare exchange: %w", err)
-// }
+// ?------->
+func processMessages(msg amqp091.Delivery) error {
+	var userData User
+	err := json.Unmarshal(msg.Body, &userData)
+	if err != nil {
+		fmt.Printf("Error unmarshalling message: %v\n", err)
+		// Optional: You can potentially re-queue the message here
+		return err
+	}
 
-//* Create queue
-// queue, err := s.event.CreateQueue("auth_queue", true, false)
-// if err != nil {
-// 	return fmt.Errorf("failed to create queue: %w", err)
-// }
-
-// exchangeName := s.config.GetBrokerConfig().Exchanges[0].Name
-// routeKey := s.config.GetBrokerConfig().Bindings[0].RoutingKey
-
-//* Create binding
-// if err := s.event.CreateBinding(queueName, routeKey, exchangeName); err != nil {
-// 	return fmt.Errorf("failed to create binding: %w", err)
-// }
-
-// Consume messages -need queue name and routing key
+	// Process the data from the message (implement your business logic here)
+	fmt.Printf("processing user: %v\n", userData)
+	// ... your message processing logic ...
+	// Validate credentials (replace with your validation logic)
+	// Acknowledge the message after successful processing
+	err = msg.Ack(false)
+	if err != nil {
+		fmt.Printf("Error acknowledging message: %v\n", err)
+	}
+	return err
+}
 
 // ? just for signal
 // var userMsgReceived = make(chan struct{})
@@ -196,57 +295,6 @@ func (s authService) createToken(userID uint, subject string, expiresDuration ti
 
 	return tokenStr, nil
 }
-
-//!-------->
-// Define a type for the message
-// type UserMessage struct {
-//     CorrelationId string
-//     // Add other fields as needed
-// }
-
-// // Modify consumeUserMessages to return a read-only channel of UserMessage
-// func (s authService) consumeUserMessages() <-chan UserMessage {
-//     // Create a channel for sending user messages
-//     userMsgs := make(chan UserMessage)
-
-//     go func() {
-//         defer close(userMsgs)
-
-//         queueName := s.config.GetBrokerConfig().Queues[0].Name
-//         msgs, err := s.event.Consume(queueName, "auth_consumer", false)
-//         if err != nil {
-//             log.Printf("failed to consume messages: %v", err)
-//             return
-//         }
-
-//         for message := range msgs {
-//             // Extract relevant information from the message and send it through the channel
-//             userMsg := UserMessage{
-//                 CorrelationId: message.CorrelationId,
-//                 // Extract other fields as needed
-//             }
-//             userMsgs <- userMsg
-//         }
-//     }()
-
-//     return userMsgs
-// }
-
-// Define a function to process user messages
-// func (s authService) processUserMessages(userMsgs <-chan UserMessage) {
-//     for userMsg := range userMsgs {
-//         // Process the user message
-//         log.Printf("Processing user message with CorrelationId: %s\n", userMsg.CorrelationId)
-
-//         // Perform any necessary operations with the user message, such as database updates, authentication, etc.
-//         // Example:
-//         // if err := s.processUserMessage(userMsg); err != nil {
-//         //     log.Printf("Error processing user message: %v\n", err)
-//         // }
-//     }
-// }
-
-//! ------>
 
 // func (s authService) AddRevokedToken(tokenID string) error {
 // 	panic("")

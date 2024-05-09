@@ -26,7 +26,7 @@ func GetConnectionPool(cfg ports.Config) (*sqlx.DB, error) {
 
 	once.Do(func() {
 		var err error
-		dsn := fmt.Sprintf("mysql://%s:%s@tcp(%s:%s)/%s",
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
 			dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
 
 		fmt.Println("dsn :", dsn)

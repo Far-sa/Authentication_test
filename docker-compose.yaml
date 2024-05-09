@@ -74,10 +74,10 @@ services:
     ports:
       - "3306:3306" # MySQL default port
     environment:
-      #MYSQL_USER: root
-      #MYSQL_PASSWORD: password
-      MYSQL_DATABASE: mysqlUser
       MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: mysqlUser
+      MYSQL_USER: root
+      MYSQL_PASSWORD: password
     volumes:
       - ./data/mysql-data:/var/lib/mysql
     networks:

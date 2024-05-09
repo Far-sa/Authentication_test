@@ -25,6 +25,7 @@ func GetConnectionPool(cfg ports.Config) (*sql.DB, error) {
 		var err error
 		dataSourceName := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbCfg.User, dbCfg.Password, dbCfg.Host, dbCfg.Port, dbCfg.DBName)
+
 		pool, err = sql.Open("postgres", dataSourceName)
 		if err != nil {
 			log.Fatal("failed to connect to database:", err)
