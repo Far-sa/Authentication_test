@@ -37,21 +37,22 @@ type EventPublisher interface {
 
 type RabbitMQ interface {
 	// GetChannel opens a new AMQP channel with context support
-	GetChannel() (*amqp.Channel, error)
+	// GetChannel() (*amqp.Channel, error)
 
 	// Close closes the underlying AMQP connection
-	Close() error
+	// Close() error
 
 	// CreateExchange declares a new exchange on the RabbitMQ server
-	CreateExchange(name string, kind string) error
+	DeclareExchange(name string, kind string) error
 
 	// CreateQueue declares a new queue on the RabbitMQ server
-	CreateQueue(name string) (string, error)
+	CreateQueue(name string, durable, autodelete bool) (amqp.Queue, error)
 
 	// BindQueue binds an existing queue to an existing exchange with a routing key
-	BindQueue(queueName string, exchangeName string, routingKey string) error
+	CreateBinding(queueName string, exchangeName string, routingKey string) error
 
 	// PublishMessage sends a message to a specific exchange with a routing key with context support for cancellation
 	PublishMessage(ctx context.Context, exchangeName string, routingKey string, options amqp.Publishing) error
-	Consume(ctx context.Context, queueName string, callback func(message amqp.Delivery) error) error
+	//Consume(ctx context.Context, queueName string, callback func(message amqp.Delivery) error) error
+	Consume(ctx context.Context, queueName, consumer string) (<-chan amqp.Delivery, error)
 }

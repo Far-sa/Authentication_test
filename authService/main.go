@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/viper"
 )
 
@@ -28,22 +27,6 @@ func init() {
 }
 
 func main() {
-
-	//* load config
-	// dbConfig := db.Config{
-	// 	User:     viper.GetString("db.user"),
-	// 	Password: viper.GetString("db.password"),
-	// 	Port:     viper.GetInt("db.port"),
-	// 	Host:     viper.GetString("db.host"),
-	// 	DbName:   viper.GetString("db.dbName"),
-	// }
-
-	// rabbitConf := messaging.RabbitMQConfig{
-	// 	Host:     viper.GetString("rabbitmq.host"),
-	// 	User:     viper.GetString("rabbitmq.user"),
-	// 	Password: viper.GetString("rabbitmq.password"),
-	// 	Port:     viper.GetString("rabbitmq.port"),
-	// }
 
 	configAdapter, err := config.NewViperAdapter()
 	if err != nil {
@@ -75,8 +58,8 @@ func main() {
 
 	// Initialize Echo
 	e := echo.New()
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	// e.Use(middleware.Logger())
+	// e.Use(middleware.Recover())
 
 	e.POST("/login", authHandler.Login)
 	// e.GET("/revoke-token", authHandler.RevokeToken)

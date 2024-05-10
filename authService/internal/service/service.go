@@ -6,7 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -47,7 +49,7 @@ type User struct {
 }
 
 // NewTokenHandler creates a new TokenHandler with the given authService
-func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event ports.EventPublisher) authService {
+func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event ports.RabbitMQ) authService {
 	return authService{config: config, authRepo: authRepo}
 }
 
@@ -55,70 +57,90 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 
 	//! sequntial
 	// Hash the password from the incoming request
-	hashedPassword, err := HashPassword(user.Password)
-	if err != nil {
-		return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
-	}
-
-	queueName := s.config.GetBrokerConfig().Queues[0].Name
-	exName := s.config.GetBrokerConfig().Exchanges[0].Name
-	routeKey := s.config.GetBrokerConfig().Bindings[0].RoutingKey
-
-	var userData User
-	var accessToken, refreshToken string
-	userData = User{}
-
-	// q, err := s.event.CreateQueue(queueName)
+	// hashedPassword, err := HashPassword(user.Password)
 	// if err != nil {
-	// 	fmt.Println("Error binding queue", err)
-
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
 	// }
 
-	if err := s.event.BindQueue(queueName, exName, routeKey); err != nil {
-		fmt.Println("Error binding queue", err)
+	if err := s.event.DeclareExchange("user_events", "direct"); err != nil {
+		log.Printf("Error creating exchange: %v", err)
+		return param.LoginResponse{}, fmt.Errorf("failed to create exchange: %w", err) // Propagate error
+
 	}
 
-	err = s.event.Consume(ctx, queueName, func(msg amqp091.Delivery) error {
-		err := json.Unmarshal(msg.Body, &userData)
-		if err != nil {
-			fmt.Printf("Error unmarshalling message: %v\n", err)
-			return err
-		}
-
-		if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
-			return err
-		}
-
-		accessToken, err = s.createAccessToken(userData)
-		if err != nil {
-			return err
-		}
-
-		refreshToken, err = s.refreshAccessToken(userData)
-		if err != nil {
-			return err
-		}
-
-		if err := s.authRepo.StoreToken(int(userData.ID), accessToken, time.Now().Add(72*time.Second)); err != nil {
-			fmt.Println("Error storing token:", err)
-		}
-
-		err = msg.Ack(false)
-		if err != nil {
-			fmt.Printf("Error acknowledging message: %v\n", err)
-		}
-
-		return nil
-	})
-
+	q, err := s.event.CreateQueue("user_registrations", true, false)
 	if err != nil {
-		fmt.Println("Error consuming messages:", err)
+		fmt.Println("Error creating queue", err)
+		return param.LoginResponse{}, fmt.Errorf("failed to create queue: %w", err) // Propagate error
 	}
 
-	return param.LoginResponse{
-		User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email},
-		Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
-	}, nil
+	if err := s.event.CreateBinding(q.Name, "user_events", "user.registered"); err != nil {
+		fmt.Println("Error binding queue", err)
+		return param.LoginResponse{}, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second) // Set timeout for message consumption
+	defer cancel()
+
+	msgs, err := s.event.Consume(ctx, q.Name, "auth_svc")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var wg sync.WaitGroup // Use WaitGroup for goroutine synchronization
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		for msg := range msgs {
+			log.Printf("Received a message: %s", msg.Body)
+		}
+	}()
+	log.Println("Waiting for messages. To exit press CTRL+C")
+
+	// Signal the goroutine to stop consuming messages
+	cancel()
+
+	// Wait for the goroutine to finish consuming messages
+	wg.Wait()
+
+	// err := json.Unmarshal(msg.Body, &userData)
+	// if err != nil {
+	// 	fmt.Printf("Error unmarshalling message: %v\n", err)
+	// 	return err
+	// }
+
+	// if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
+	// 	return err
+	// }
+
+	// accessToken, err = s.createAccessToken(userData)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// refreshToken, err = s.refreshAccessToken(userData)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// if err := s.authRepo.StoreToken(int(userData.ID), accessToken, time.Now().Add(72*time.Second)); err != nil {
+	// 	fmt.Println("Error storing token:", err)
+	// }
+
+	// err = msg.Ack(false)
+	// if err != nil {
+	// 	fmt.Printf("Error acknowledging message: %v\n", err)
+	// }
+
+	// return nil
+
+	// return param.LoginResponse{
+	// 	User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email},
+	// 	Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
+	// }, nil
+
+	return param.LoginResponse{}, nil
 
 	//!----> handle wirh go routines
 	// Hash the password from the incoming request

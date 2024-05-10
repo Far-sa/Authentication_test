@@ -61,11 +61,6 @@ func (rc RabbitClient) DeclareExchange(name, kind string) error {
 	return rc.ch.ExchangeDeclare(name, kind, true, false, false, false, nil)
 }
 
-// * for binding exchanges to queue
-func (rc RabbitClient) CreateBinding(name, binding, exchange string) error {
-	return rc.ch.QueueBind(name, binding, exchange, false, nil)
-}
-
 func (rc RabbitClient) Publish(
 	ctx context.Context,
 	exchange, routingKey string,
@@ -86,6 +81,12 @@ func (rc RabbitClient) Publish(
 	log.Println(confirmation.Wait())
 	// confirmation.Wait()
 	return nil
+}
+
+// !------>
+// * for binding exchanges to queue
+func (rc RabbitClient) CreateBinding(name, binding, exchange string) error {
+	return rc.ch.QueueBind(name, binding, exchange, false, nil)
 }
 
 func (rc RabbitClient) Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {

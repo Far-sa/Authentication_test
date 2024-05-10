@@ -82,38 +82,39 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 func (us Service) publishUserData(ctx context.Context, createdUser interface{}) error {
 
 	fmt.Println("exchange name:", us.Config.GetBrokerConfig().Exchanges[0].Name)
-	exchangeName := us.Config.GetBrokerConfig().Exchanges[0].Name
-	Topic := us.Config.GetBrokerConfig().Exchanges[0].Type
-	queueName := us.Config.GetBrokerConfig().Queues[0].Name
-	routeKey := us.Config.GetBrokerConfig().Bindings[0].RoutingKey
+	// exchangeName := us.Config.GetBrokerConfig().Exchanges[0].Name
+	// Topic := us.Config.GetBrokerConfig().Exchanges[0].Type
+	// queueName := us.Config.GetBrokerConfig().Queues[0].Name
+	// routeKey := us.Config.GetBrokerConfig().Bindings[0].RoutingKey
 
-	if err := us.eventPublisher.DeclareExchange(exchangeName, Topic); err != nil {
+	if err := us.eventPublisher.DeclareExchange("user_events", "direct"); err != nil {
 		return fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
 	// Declare Queue
-	_, err := us.eventPublisher.CreateQueue(queueName, true, false)
-	if err != nil {
-		return fmt.Errorf("failed to create queue: %w", err)
-	}
+	// _, err := us.eventPublisher.CreateQueue("user_registrations", true, false)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create queue: %w", err)
+	// }
 
-	if err := us.eventPublisher.CreateBinding(queueName, routeKey, exchangeName); err != nil {
-		return fmt.Errorf("failed to create binding: %w", err)
-	}
+	// if err := us.eventPublisher.CreateBinding(queueName, routeKey, exchangeName); err != nil {
+	// 	return fmt.Errorf("failed to create binding: %w", err)
+	// }
 
 	body, err := json.Marshal(createdUser)
 	if err != nil {
 		return fmt.Errorf("failed to serialize user data: %w", err)
 	}
 
-	if err := us.eventPublisher.Publish(ctx, exchangeName, routeKey, amqp091.Publishing{
+	if err := us.eventPublisher.Publish(ctx, "user_events", "user.registered", amqp091.Publishing{
 		ContentType:   "text/plain",
 		DeliveryMode:  amqp091.Persistent,
-		Body:          body,
+		Body:          []byte(body),
 		CorrelationId: "",
 	}); err != nil {
 		return fmt.Errorf("failed to publish user to auth-service: %w", err)
 	}
+	fmt.Println("Message published successfully")
 
 	return nil
 }

@@ -78,11 +78,11 @@ func (rc RabbitClient) CreateBinding(name, binding, exchange string) error {
 // 	Closed   bool
 // }
 
-func (rc RabbitClient) Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {
-	return rc.ch.Consume(queue, consumer, autoAck, false, false, false, nil)
+func (rc RabbitClient) Consume(ctx context.Context, queue, consumer string) (<-chan amqp.Delivery, error) {
+	return rc.ch.Consume(queue, consumer, false, false, false, false, nil)
 }
 
-func (rc RabbitClient) Send(
+func (rc RabbitClient) PublishMessage(
 	ctx context.Context,
 	exchange, routingKey string,
 	options amqp.Publishing,
