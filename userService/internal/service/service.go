@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 	"user-svc/internal/entity"
 	"user-svc/internal/service/param"
@@ -81,7 +82,6 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 
 func (us Service) publishUserData(ctx context.Context, createdUser interface{}) error {
 
-	fmt.Println("exchange name:", us.Config.GetBrokerConfig().Exchanges[0].Name)
 	// exchangeName := us.Config.GetBrokerConfig().Exchanges[0].Name
 	// Topic := us.Config.GetBrokerConfig().Exchanges[0].Type
 	// queueName := us.Config.GetBrokerConfig().Queues[0].Name
@@ -114,7 +114,7 @@ func (us Service) publishUserData(ctx context.Context, createdUser interface{}) 
 	}); err != nil {
 		return fmt.Errorf("failed to publish user to auth-service: %w", err)
 	}
-	fmt.Println("Message published successfully")
+	log.Println("User event published successfully")
 
 	return nil
 }

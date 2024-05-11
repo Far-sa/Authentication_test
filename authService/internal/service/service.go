@@ -63,20 +63,20 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 	// }
 
 	//!!!!!!!
-	if err := s.event.DeclareExchange("user_data_exchange", "direct"); err != nil {
+	if err := s.event.DeclareExchange("user_events", "direct"); err != nil {
 		log.Printf("Error creating exchange: %v", err)
 		return param.LoginResponse{}, fmt.Errorf("failed to create exchange: %w", err) // Propagate error
 	}
 
 	// Create queue
-	queue, err := s.event.CreateQueue("auth_queue", true, false)
+	queue, err := s.event.CreateQueue("user_registrations", true, false)
 	if err != nil {
 		fmt.Println("Error creating queue", err)
 		return param.LoginResponse{}, fmt.Errorf("failed to create queue: %w", err) // Propagate error
 	}
 
 	// Create binding
-	if err := s.event.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
+	if err := s.event.CreateBinding(queue.Name, "auth_routing_key", "user_events"); err != nil {
 		fmt.Println("Error binding queue", err)
 		return param.LoginResponse{}, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
 	}

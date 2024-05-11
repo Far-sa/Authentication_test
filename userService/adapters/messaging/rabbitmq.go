@@ -63,14 +63,15 @@ func (rc *RabbitMQClient) DeclareExchange(name, kind string) error {
 func (rc *RabbitMQClient) Publish(ctx context.Context, exchangeName string, routingKey string, options amqp.Publishing) error {
 	ch, err := rc.GetChannel()
 	if err != nil {
+		log.Printf("Error getting channel: %v\n", err)
 		return err
 	}
-	defer ch.Close() // Close the channel after use
 
-	// body, err := json.Marshal(message) // Marshal the message to JSON
-	// if err != nil {
-	// 	return fmt.Errorf("failed to marshal message: %w", err)
-	// }
+	defer func() {
+		if closeErr := ch.Close(); closeErr != nil {
+			log.Printf("Error closing channel: %v\n", closeErr)
+		}
+	}()
 
 	confirmation, err := ch.PublishWithDeferredConfirmWithContext(
 		ctx,
@@ -82,11 +83,12 @@ func (rc *RabbitMQClient) Publish(ctx context.Context, exchangeName string, rout
 	)
 
 	if err != nil {
+		log.Printf("Error publishing message: %v\n", err)
 		return err
 	}
 
-	log.Println(confirmation.Wait())
 	// confirmation.Wait()
+	log.Printf("Message published successfully. Confirmation: %v\n", confirmation.Wait())
 	return nil
 
 }
