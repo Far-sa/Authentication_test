@@ -65,7 +65,7 @@ func TestRegisterHandler(t *testing.T) {
 			zapLogger, _ := logger.NewZapLogger(configAdapter)
 
 			//connectionString := "amqp://puppet:password@localhost:5672/"
-			publisher, err := messaging.NewRabbitMQClient(configAdapter)
+			publisher, err := messaging.NewRabbitClient(configAdapter)
 			if err != nil {
 				log.Fatalf("failed to connect to RabbitMQ: %v", err)
 			}

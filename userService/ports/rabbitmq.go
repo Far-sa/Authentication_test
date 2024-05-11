@@ -7,15 +7,12 @@ import (
 )
 
 type EventPublisher interface {
-	DeclareExchange(name, kind string) error
-	CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error)
-	CreateBinding(name, binding, exchange string) error
-	Publish(ctx context.Context, exchange, routingKey string, options amqp.Publishing) error
-	//Consume(ctx context.Context, queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error)
-}
+	GetChannel() (*amqp.Channel, error)
+	Close() error
 
-//? RabbitMQClient defines the interface for core RabbitMQ interactions
-// type RabbitMQClient interface {
-//   Publish(exchange, routingKey string, body []byte) error
-//   Subscribe(queueName, routingKey string, handler func(msg []byte) error) error
-// }
+	DeclareExchange(name, kind string) error
+	Publish(ctx context.Context, exchange, routingKey string, options amqp.Publishing) error
+	// CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error)
+	// CreateBinding(queueName, routingKey, exchangeName string) error
+	// Consume(queueName, consumer string, autoAck bool) (<-chan amqp.Delivery, error)
+}

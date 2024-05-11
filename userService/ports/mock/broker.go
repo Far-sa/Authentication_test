@@ -15,6 +15,18 @@ func NewMockEventPublisher() *MockEventPublisher {
 	return &MockEventPublisher{}
 }
 
+// ! implements -->
+func (m *MockEventPublisher) GetChannel() (*amqp.Channel, error) {
+	return nil, nil
+	// args := m.Called()
+	// return args.Get(0), args.Error(1)
+}
+
+func (m *MockEventPublisher) Close() error {
+	args := m.Called()
+	return args.Error(1)
+}
+
 func (m *MockEventPublisher) DeclareExchange(name, kind string) error {
 	args := m.Called(name, kind)
 	return args.Error(0)
