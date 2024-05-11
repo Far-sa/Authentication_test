@@ -47,7 +47,7 @@ func main() {
 	log.Println("Migrations completed successfully!")
 
 	//connectionString := "amqp://guest:guest@localhost:5672/"
-	eventPublisher, err := messaging.NewRabbitMQClient(configAdapter)
+	eventPublisher, err := messaging.NewRabbitClient(configAdapter)
 	if err != nil {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
 	}

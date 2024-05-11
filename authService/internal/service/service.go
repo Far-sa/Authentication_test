@@ -37,7 +37,7 @@ const (
 type authService struct {
 	config   ports.Config
 	authRepo ports.AuthRepository
-	event    ports.RabbitMQ
+	event    ports.EventPublisher
 	// event    ports.EventPublisher
 }
 
@@ -49,8 +49,8 @@ type User struct {
 }
 
 // NewTokenHandler creates a new TokenHandler with the given authService
-func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event ports.RabbitMQ) authService {
-	return authService{config: config, authRepo: authRepo}
+func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event ports.EventPublisher) authService {
+	return authService{config: config, authRepo: authRepo, event: event}
 }
 
 func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.LoginResponse, error) {
@@ -62,47 +62,64 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 	// 	return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
 	// }
 
-	if err := s.event.DeclareExchange("user_events", "direct"); err != nil {
+	//!!!!!!!
+	if err := s.event.DeclareExchange("user_data_exchange", "direct"); err != nil {
 		log.Printf("Error creating exchange: %v", err)
 		return param.LoginResponse{}, fmt.Errorf("failed to create exchange: %w", err) // Propagate error
-
 	}
 
-	q, err := s.event.CreateQueue("user_registrations", true, false)
+	// Create queue
+	queue, err := s.event.CreateQueue("auth_queue", true, false)
 	if err != nil {
 		fmt.Println("Error creating queue", err)
 		return param.LoginResponse{}, fmt.Errorf("failed to create queue: %w", err) // Propagate error
 	}
 
-	if err := s.event.CreateBinding(q.Name, "user_events", "user.registered"); err != nil {
+	// Create binding
+	if err := s.event.CreateBinding(queue.Name, "auth_routing_key", "user_data_exchange"); err != nil {
 		fmt.Println("Error binding queue", err)
 		return param.LoginResponse{}, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second) // Set timeout for message consumption
-	defer cancel()
-
-	msgs, err := s.event.Consume(ctx, q.Name, "auth_svc")
+	// Consume messages
+	msgs, err := s.event.Consume(queue.Name, "auth_consumer", false)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	var wg sync.WaitGroup // Use WaitGroup for goroutine synchronization
-	wg.Add(1)
 
-	go func() {
-		defer wg.Done()
-		for msg := range msgs {
-			log.Printf("Received a message: %s", msg.Body)
-		}
-	}()
+	const numWorkers = 5 // Number of worker goroutines
+
+	// Create a buffered channel to store messages
+	msgChan := make(chan []byte, numWorkers)
+
+	// Start worker goroutines to process messages concurrently
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for msg := range msgChan {
+				log.Printf("Received a message: %s", msg)
+				// Process the message here
+			}
+		}()
+	}
+
 	log.Println("Waiting for messages. To exit press CTRL+C")
 
-	// Signal the goroutine to stop consuming messages
-	cancel()
+	// Start a goroutine to read messages from the event and send them to the channel
+	go func() {
+		for msg := range msgs {
+			msgChan <- msg.Body
+		}
+	}()
 
-	// Wait for the goroutine to finish consuming messages
+	// Wait for all worker goroutines to finish
 	wg.Wait()
+
+	return param.LoginResponse{}, nil
+	//!!!!!!!
 
 	// err := json.Unmarshal(msg.Body, &userData)
 	// if err != nil {
@@ -139,8 +156,6 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 	// 	User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email},
 	// 	Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
 	// }, nil
-
-	return param.LoginResponse{}, nil
 
 	//!----> handle wirh go routines
 	// Hash the password from the incoming request

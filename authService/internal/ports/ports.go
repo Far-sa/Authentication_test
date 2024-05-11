@@ -27,32 +27,13 @@ type AuthService interface {
 //		Closed   bool
 //	}
 type EventPublisher interface {
+	GetChannel() (*amqp.Channel, error)
+	Close() error
+
 	DeclareExchange(name, kind string) error
 	CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error)
-	CreateBinding(name, binding, exchange string) error
-	Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error)
+	CreateBinding(queueName, routingKey, exchangeName string) error
+	Consume(queueName, consumer string, autoAck bool) (<-chan amqp.Delivery, error)
 	// PublishUser(userInfo *UserInfo) error
 
-}
-
-type RabbitMQ interface {
-	// GetChannel opens a new AMQP channel with context support
-	// GetChannel() (*amqp.Channel, error)
-
-	// Close closes the underlying AMQP connection
-	// Close() error
-
-	// CreateExchange declares a new exchange on the RabbitMQ server
-	DeclareExchange(name string, kind string) error
-
-	// CreateQueue declares a new queue on the RabbitMQ server
-	CreateQueue(name string, durable, autodelete bool) (amqp.Queue, error)
-
-	// BindQueue binds an existing queue to an existing exchange with a routing key
-	CreateBinding(queueName string, exchangeName string, routingKey string) error
-
-	// PublishMessage sends a message to a specific exchange with a routing key with context support for cancellation
-	PublishMessage(ctx context.Context, exchangeName string, routingKey string, options amqp.Publishing) error
-	//Consume(ctx context.Context, queueName string, callback func(message amqp.Delivery) error) error
-	Consume(ctx context.Context, queueName, consumer string) (<-chan amqp.Delivery, error)
 }

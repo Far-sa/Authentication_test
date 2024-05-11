@@ -2,104 +2,154 @@ package messaging
 
 import (
 	"auth-svc/internal/ports"
-	"context"
 	"fmt"
-	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	//"github.com/rabbitmq/amqp091-go/amqp"
+	// "github.com/streadway/amqp" // Import the streadway/amqp library
 )
 
-type RabbitClient struct {
+type RabbitMQClient struct {
 	config ports.Config
 	conn   *amqp.Connection
-	ch     *amqp.Channel
 }
 
-func NewRabbitMQClient(config ports.Config) (RabbitClient, error) {
-
+func NewRabbitClient(config ports.Config) (*RabbitMQClient, error) {
 	cfg := config.GetBrokerConfig()
-
 	dsn := fmt.Sprintf("amqp://%s:%s@%s:%s/", cfg.User, cfg.Password, cfg.Host, cfg.Port)
-
-	fmt.Println("dsn auth-svc: ", dsn)
 
 	conn, err := amqp.Dial(dsn)
 	if err != nil {
-		log.Fatalf("Error connecting to RabbitMQ: %s", err)
-		return RabbitClient{}, fmt.Errorf("error connecting to RabbitMQ: %w", err)
+		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
 
-	ch, err := conn.Channel()
+	return &RabbitMQClient{config: config, conn: conn}, nil
+}
+
+func (rc *RabbitMQClient) GetChannel() (*amqp.Channel, error) {
+	ch, err := rc.conn.Channel()
 	if err != nil {
-		log.Fatalf("Error opening channel: %s", err)
-		conn.Close() // Close the connection if channel opening fails
-		return RabbitClient{}, fmt.Errorf("error opening channel: %w", err)
+		return nil, err
 	}
-
-	if ch == nil {
-		log.Fatal("RabbitMQ channel is nil")
-	}
-
-	// Defer closing the connection to ensure it's closed even in case of errors
-	if err := ch.Confirm(false); err != nil {
-		return RabbitClient{}, nil
-	}
-
-	return RabbitClient{
-		config: config,
-		conn:   conn,
-		ch:     ch,
-	}, nil
+	return ch, nil
 }
 
-func (rc RabbitClient) Close() error {
-	return rc.ch.Close()
+func (rc *RabbitMQClient) Close() error {
+	return rc.conn.Close() // Close the underlying connection
 }
 
-func (rc RabbitClient) DeclareExchange(name, kind string) error {
-	return rc.ch.ExchangeDeclare(name, kind, true, false, false, false, nil)
-}
-
-func (rc RabbitClient) CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error) {
-	q, err := rc.ch.QueueDeclare(queueName, durable, autodelete, false, false, nil)
-	if err != nil {
-		return amqp.Queue{}, nil
-	}
-	return q, err
-}
-
-// * for binding exchange to queue
-func (rc RabbitClient) CreateBinding(name, binding, exchange string) error {
-	return rc.ch.QueueBind(name, binding, exchange, false, nil)
-}
-
-// type ConsumeResult struct {
-// 	Messages <-chan amqp.Delivery
-// 	Closed   bool
-// }
-
-func (rc RabbitClient) Consume(ctx context.Context, queue, consumer string) (<-chan amqp.Delivery, error) {
-	return rc.ch.Consume(queue, consumer, false, false, false, false, nil)
-}
-
-func (rc RabbitClient) PublishMessage(
-	ctx context.Context,
-	exchange, routingKey string,
-	options amqp.Publishing,
-) error {
-	confirmation, err := rc.ch.PublishWithDeferredConfirmWithContext(
-		ctx,
-		exchange,
-		routingKey,
-		true,
-		false,
-		options,
-	)
+// CreateExchange declares a new exchange on the RabbitMQ server
+func (rc *RabbitMQClient) DeclareExchange(name, kind string) error {
+	ch, err := rc.GetChannel()
 	if err != nil {
 		return err
 	}
+	defer ch.Close() // Close the channel after use
 
-	log.Println(confirmation.Wait())
-	// confirmation.Wait()
-	return nil
+	return ch.ExchangeDeclare(
+		name,  // Name of the exchange
+		kind,  // Type of exchange (e.g., "fanout", "direct", "topic")
+		true,  // Durable (survives server restarts)
+		false, // Delete when unused
+		false, // Exclusive (only this connection can access)
+		false,
+		nil, // Arguments
+	)
 }
+
+// CreateQueue declares a new queue on the RabbitMQ server
+func (rc *RabbitMQClient) CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error) {
+	ch, err := rc.GetChannel()
+	if err != nil {
+		return amqp.Queue{}, err
+	}
+	defer ch.Close() // Close the channel after use
+
+	queue, err := ch.QueueDeclare(
+		queueName,  // Name of the queue
+		durable,    // Durable (survives server restarts)
+		autodelete, // Exclusive (only this connection can access)
+		false,      // Delete when unused
+		false,
+		nil, // Arguments
+	)
+	if err != nil {
+		return amqp.Queue{}, err
+	}
+
+	return queue, nil
+
+}
+
+// BindQueue binds an existing queue to an existing exchange with a routing key
+func (rc *RabbitMQClient) CreateBinding(queueName, routingKey, exchangeName string) error {
+	ch, err := rc.GetChannel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close() // Close the channel after use
+
+	return ch.QueueBind(
+		queueName,    // Name of the queue to bind
+		routingKey,   // Routing key for messages
+		exchangeName, // Name of the exchange to bind to
+		false,        // No wait
+		nil,          // Arguments
+	)
+}
+
+// ! Consume
+func (rc *RabbitMQClient) Consume(queueName, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {
+	ch, err := rc.GetChannel()
+	if err != nil {
+		return nil, err
+	}
+	defer ch.Close() // Close the channel after use
+
+	return ch.Consume(
+		queueName,
+		consumer, // Consumer tag (can be left empty)
+		autoAck,  // Auto-ack (set to false for manual ack)
+		false,    // Exclusive (only this consumer can access the queue)
+		false,    // No local (only deliver to this server)
+		false,    // No wait
+		nil,      // Arguments
+	)
+}
+
+//! PublishMessage sends a message to a specific exchange with a routing key
+// func (rc *RabbitMQClient) PublishMessage(ctx context.Context, exchangeName string, routingKey string, options amqp.Publishing) error {
+// 	ch, err := rc.GetChannel()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer ch.Close() // Close the channel after use
+
+// 	// body, err := json.Marshal(message) // Marshal the message to JSON
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("failed to marshal message: %w", err)
+// 	// }
+
+// 	confirmation, err := ch.PublishWithDeferredConfirmWithContext(
+// 		ctx,
+// 		exchangeName, // Name of the exchange
+// 		routingKey,   // Routing key for message
+// 		false,        // Mandatory (if true, message is rejected if no queue is bound)
+// 		false,        // Immediate (if true, delivery happens now, or fails)
+// 		options,
+// 	)
+
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	log.Println(confirmation.Wait())
+// 	// confirmation.Wait()
+// 	return nil
+
+// }
+
+//! QOS
+// func (rc RabbitClient) ApplyQos(count, size int, global bool) error {
+// 	return rc.ch.Qos(count, size, global)
+// }
