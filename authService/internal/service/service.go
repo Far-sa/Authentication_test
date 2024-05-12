@@ -56,44 +56,47 @@ func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event po
 func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.LoginResponse, error) {
 
 	//! sequntial
-	// Hash the password from the incoming request
 	// hashedPassword, err := HashPassword(user.Password)
 	// if err != nil {
 	// 	return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
 	// }
 
-	//!!!!!!!
-	s.consumeMessages()
+	userData, err := s.consumeMessages()
+	if err != nil {
+		return param.LoginResponse{}, fmt.Errorf("failed to consume messages: %w", err)
+	}
+
+	log.Println("data:", userData)
+
+	//! Process messages to extract userData
+
 	return param.LoginResponse{}, nil
-	//!!!!!!!
 }
 
-func (s authService) consumeMessages() error {
+func (s authService) consumeMessages() ([]User, error) {
+	var allUsers []User // Declare a slice to store processed users
 
 	if err := s.event.DeclareExchange("user_events", "direct"); err != nil {
 		log.Printf("Error creating exchange: %v", err)
-		return fmt.Errorf("failed to create exchange: %w", err) // Propagate error
+		return nil, fmt.Errorf("failed to create exchange: %w", err) // Propagate error
 	}
 
-	// Create queue
 	queue, err := s.event.CreateQueue("user_registrations", true, false)
 	if err != nil {
-		return fmt.Errorf("failed to create queue: %w", err) // Propagate error
+		return nil, fmt.Errorf("failed to create queue: %w", err) // Propagate error
 	}
 
-	// Create binding
 	if err := s.event.CreateBinding(queue.Name, "auth_routing_key", "user_events"); err != nil {
-		return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+		return nil, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
 	}
 
-	// Consume messages
 	msgs, err := s.event.Consume(queue.Name, "auth_consumer", false)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var wg sync.WaitGroup // Use WaitGroup for goroutine synchronization
-	const numWorkers = 5  // Number of worker goroutines
+	var wg sync.WaitGroup
+	const numWorkers = 5
 	// Create a buffered channel to store messages
 	msgChan := make(chan amqp.Delivery, numWorkers)
 
@@ -103,10 +106,14 @@ func (s authService) consumeMessages() error {
 		go func() {
 			defer wg.Done()
 			for msg := range msgChan {
-				if err := processMessages(msg); err != nil {
+				userData, err := s.processMessages(msg)
+				if err != nil {
 					log.Printf("Error processing message: %v", err)
 					// Handle error or re-queue message if needed
+					continue
 				}
+				allUsers = append(allUsers, userData) // Add processed user to the slice
+
 			}
 		}()
 	}
@@ -122,22 +129,21 @@ func (s authService) consumeMessages() error {
 
 	// Wait for all worker goroutines to finish
 	wg.Wait()
+	return allUsers, nil
 
-	return nil
 }
 
-func processMessages(msg amqp.Delivery) error {
+func (s authService) processMessages(msg amqp.Delivery) (User, error) {
 	var userData User
 	err := json.Unmarshal(msg.Body, &userData)
 	if err != nil {
 		fmt.Printf("Error unmarshalling message: %v\n", err)
 		// Optional: You can potentially re-queue the message here
-		return err
+		return User{}, err
 	}
 
 	// Process the data from the message (implement your business logic here)
 	fmt.Printf("processing user: %v\n", userData)
-	// ... your message processing logic ...
 	// Validate credentials (replace with your validation logic)
 
 	// Acknowledge the message after successful processing
@@ -145,14 +151,8 @@ func processMessages(msg amqp.Delivery) error {
 	if err != nil {
 		fmt.Printf("Error acknowledging message: %v\n", err)
 	}
-	return err
+	return userData, nil
 }
-
-// err := json.Unmarshal(msg.Body, &userData)
-// if err != nil {
-// 	fmt.Printf("Error unmarshalling message: %v\n", err)
-// 	return err
-// }
 
 // if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
 // 	return err
