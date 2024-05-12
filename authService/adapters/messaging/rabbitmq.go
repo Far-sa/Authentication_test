@@ -117,37 +117,36 @@ func (rc *RabbitMQClient) Consume(queueName, consumer string, autoAck bool) (<-c
 	)
 }
 
-//! PublishMessage sends a message to a specific exchange with a routing key
-// func (rc *RabbitMQClient) PublishMessage(ctx context.Context, exchangeName string, routingKey string, options amqp.Publishing) error {
-// 	ch, err := rc.GetChannel()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer ch.Close() // Close the channel after use
+// ! PublishMessage sends a message to a specific exchange with a routing key
+func (rc *RabbitMQClient) PublishMessage(exchangeName string, routingKey string, options amqp.Publishing) error {
+	ch, err := rc.GetChannel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close() // Close the channel after use
 
-// 	// body, err := json.Marshal(message) // Marshal the message to JSON
-// 	// if err != nil {
-// 	// 	return fmt.Errorf("failed to marshal message: %w", err)
-// 	// }
+	// body, err := json.Marshal(message) // Marshal the message to JSON
+	// if err != nil {
+	// 	return fmt.Errorf("failed to marshal message: %w", err)
+	// }
 
-// 	confirmation, err := ch.PublishWithDeferredConfirmWithContext(
-// 		ctx,
-// 		exchangeName, // Name of the exchange
-// 		routingKey,   // Routing key for message
-// 		false,        // Mandatory (if true, message is rejected if no queue is bound)
-// 		false,        // Immediate (if true, delivery happens now, or fails)
-// 		options,
-// 	)
+	err = ch.Publish(
+		exchangeName, // Name of the exchange
+		routingKey,   // Routing key for message
+		false,        // Mandatory (if true, message is rejected if no queue is bound)
+		false,        // Immediate (if true, delivery happens now, or fails)
+		options,
+	)
 
-// 	if err != nil {
-// 		return err
-// 	}
+	if err != nil {
+		return err
+	}
 
-// 	log.Println(confirmation.Wait())
-// 	// confirmation.Wait()
-// 	return nil
+	//log.Println(confirmation.Wait())
+	// confirmation.Wait()
+	return nil
 
-// }
+}
 
 //! QOS
 // func (rc RabbitClient) ApplyQos(count, size int, global bool) error {

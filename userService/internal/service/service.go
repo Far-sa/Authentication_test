@@ -89,6 +89,15 @@ func (us Service) publishUserData(ctx context.Context, createdUser interface{}) 
 		return fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
+	// queue, err := us.eventPublisher.CreateQueue("user_registrations", true, false)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create queue: %w", err) // Propagate error
+	// }
+
+	// if err := us.eventPublisher.CreateBinding(queue.Name, "auth_routing_key", "user_events"); err != nil {
+	// 	return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+	// }
+
 	body, err := json.Marshal(createdUser)
 	if err != nil {
 		return fmt.Errorf("failed to serialize user data: %w", err)

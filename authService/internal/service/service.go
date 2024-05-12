@@ -53,51 +53,57 @@ func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event po
 	return authService{config: config, authRepo: authRepo, event: event}
 }
 
-func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.LoginResponse, error) {
+func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.LoginResponse, error) {
 
 	//! sequntial
-	// hashedPassword, err := HashPassword(user.Password)
-	// if err != nil {
-	// 	return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
-	// }
+	hashedPassword, err := HashPassword(req.Password)
+	if err != nil {
+		return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
+	}
 
 	userData, err := s.consumeMessages()
 	if err != nil {
 		return param.LoginResponse{}, fmt.Errorf("failed to consume messages: %w", err)
 	}
 
+	var user User
 	// Iterate over userData slice and extract data
-	for _, user := range userData {
-		fmt.Println("User ID:", user.ID)
-		fmt.Println("User Email:", user.Email)
+	for _, u := range userData {
+
+		user = User{
+			ID:       u.ID,
+			Email:    u.Email,
+			Password: u.Password,
+		}
+		fmt.Println("User ID:", u.ID)
+		fmt.Println("User Email:", u.Email)
 		// Extract other fields as needed
 	}
 
-	// if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
-	// 	return param.LoginResponse{}, fmt.Errorf("failed to compare passwords: %w", err)
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(hashedPassword)); err != nil {
+		return param.LoginResponse{}, fmt.Errorf("failed to compare passwords: %w", err)
 
-	// }
+	}
 
-	// accessToken, err := s.createAccessToken(userData)
-	// if err != nil {
-	// 	return param.LoginResponse{}, fmt.Errorf("failed to create access token: %w", err)
-	// }
+	accessToken, err := s.createAccessToken(user)
+	if err != nil {
+		return param.LoginResponse{}, fmt.Errorf("failed to create access token: %w", err)
+	}
 
-	// refreshToken, err := s.refreshAccessToken(userData)
-	// if err != nil {
-	// 	return param.LoginResponse{}, fmt.Errorf("failed to create refresh token: %w", err)
-	// }
+	refreshToken, err := s.refreshAccessToken(user)
+	if err != nil {
+		return param.LoginResponse{}, fmt.Errorf("failed to create refresh token: %w", err)
+	}
 
-	// if err := s.authRepo.StoreToken(int(userData.ID), accessToken, time.Now().Add(72*time.Second)); err != nil {
-	// 	fmt.Println("Error storing token:", err)
-	// }
+	if err := s.authRepo.StoreToken(int(user.ID), accessToken, time.Now().Add(72*time.Hour)); err != nil {
+		fmt.Println("Error storing token:", err)
+	}
 
-	// return param.LoginResponse{
-	// 	User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email},
-	// 	Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
-	// }, nil
+	return param.LoginResponse{
+		User:   param.UserInfo{ID: uint(user.ID), Email: user.Email},
+		Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
+	}, nil
 
-	return param.LoginResponse{User: param.UserInfo{Email: user.Email}}, nil
 }
 
 func (s authService) consumeMessages() ([]User, error) {
@@ -132,7 +138,7 @@ func (s authService) consumeMessages() ([]User, error) {
 		go func() {
 			defer wg.Done()
 			for msg := range msgChan {
-				fmt.Println("Received a message: %s", msg.Body)
+				log.Printf("Received a message: %s", msg.Body)
 				userData, err := s.processMessages(msg)
 				if err != nil {
 					log.Printf("Error processing message: %v", err)
@@ -177,11 +183,23 @@ func (s authService) processMessages(msg amqp.Delivery) (User, error) {
 	fmt.Printf("processing user: %v\n", userData)
 	// Validate credentials (replace with your validation logic)
 
-	// Acknowledge the message after successful processing
-	err = msg.Ack(false)
+	// Publish the new message with processed data and message ID
+	processedData, err := json.Marshal(userData)
 	if err != nil {
-		fmt.Printf("Error acknowledging message: %v\n", err)
+		return User{}, err
 	}
+
+	//! exchange/route/
+	err = s.event.PublishMessage("user_processed_events", "auth_routing_key", amqp.Publishing{
+		ContentType:   "application/json",
+		DeliveryMode:  amqp.Persistent,
+		Body:          []byte(processedData),
+		CorrelationId: msg.MessageId,
+	})
+	if err != nil {
+		fmt.Printf("Error publishing processed message: %v\n", err)
+	}
+
 	return userData, nil
 }
 
