@@ -73,7 +73,7 @@ func (rc *RabbitMQClient) Publish(ctx context.Context, exchangeName string, rout
 		}
 	}()
 
-	confirmation, err := ch.PublishWithDeferredConfirmWithContext(
+	err = ch.PublishWithContext(
 		ctx,
 		exchangeName, // Name of the exchange
 		routingKey,   // Routing key for message
@@ -88,7 +88,7 @@ func (rc *RabbitMQClient) Publish(ctx context.Context, exchangeName string, rout
 	}
 
 	// confirmation.Wait()
-	log.Printf("Message published successfully. Confirmation: %v\n", confirmation.Wait())
+	//log.Printf("Message published successfully. Confirmation: %v\n", confirmation.Wait())
 	return nil
 
 }

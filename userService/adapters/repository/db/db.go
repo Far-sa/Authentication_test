@@ -24,7 +24,7 @@ func GetConnectionPool(cfg ports.Config) (*sqlx.DB, error) {
 	dbConfig := cfg.GetDatabaseConfig()
 
 	var err error
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
 		dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
 
 	fmt.Println("dsn :", dsn)

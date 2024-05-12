@@ -14,7 +14,7 @@ type DatabaseConfig struct {
 	User     string
 	Password string
 	Host     string
-	Port     string
+	Port     int
 	DBName   string
 }
 

@@ -13,7 +13,6 @@ import (
 
 type MysqlDB struct {
 	//metrics ports.DatabaseMetrics
-	config ports.Config
 	db     *sqlx.DB
 	logger ports.Logger
 }
