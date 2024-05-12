@@ -66,18 +66,44 @@ func (s authService) Login(ctx context.Context, user param.LoginRequest) (param.
 		return param.LoginResponse{}, fmt.Errorf("failed to consume messages: %w", err)
 	}
 
-	log.Println("data:", userData)
+	// Iterate over userData slice and extract data
+	for _, user := range userData {
+		fmt.Println("User ID:", user.ID)
+		fmt.Println("User Email:", user.Email)
+		// Extract other fields as needed
+	}
 
-	//! Process messages to extract userData
+	// if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to compare passwords: %w", err)
 
-	return param.LoginResponse{}, nil
+	// }
+
+	// accessToken, err := s.createAccessToken(userData)
+	// if err != nil {
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to create access token: %w", err)
+	// }
+
+	// refreshToken, err := s.refreshAccessToken(userData)
+	// if err != nil {
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to create refresh token: %w", err)
+	// }
+
+	// if err := s.authRepo.StoreToken(int(userData.ID), accessToken, time.Now().Add(72*time.Second)); err != nil {
+	// 	fmt.Println("Error storing token:", err)
+	// }
+
+	// return param.LoginResponse{
+	// 	User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email},
+	// 	Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
+	// }, nil
+
+	return param.LoginResponse{User: param.UserInfo{Email: user.Email}}, nil
 }
 
 func (s authService) consumeMessages() ([]User, error) {
 	var allUsers []User // Declare a slice to store processed users
 
 	if err := s.event.DeclareExchange("user_events", "direct"); err != nil {
-		log.Printf("Error creating exchange: %v", err)
 		return nil, fmt.Errorf("failed to create exchange: %w", err) // Propagate error
 	}
 
@@ -92,7 +118,7 @@ func (s authService) consumeMessages() ([]User, error) {
 
 	msgs, err := s.event.Consume(queue.Name, "auth_consumer", false)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed to consume messages: %w", err)
 	}
 
 	var wg sync.WaitGroup
@@ -106,6 +132,7 @@ func (s authService) consumeMessages() ([]User, error) {
 		go func() {
 			defer wg.Done()
 			for msg := range msgChan {
+				fmt.Println("Received a message: %s", msg.Body)
 				userData, err := s.processMessages(msg)
 				if err != nil {
 					log.Printf("Error processing message: %v", err)
@@ -113,7 +140,6 @@ func (s authService) consumeMessages() ([]User, error) {
 					continue
 				}
 				allUsers = append(allUsers, userData) // Add processed user to the slice
-
 			}
 		}()
 	}
@@ -129,6 +155,12 @@ func (s authService) consumeMessages() ([]User, error) {
 
 	// Wait for all worker goroutines to finish
 	wg.Wait()
+	// Print the data after all messages have been processed
+	for _, user := range allUsers {
+		fmt.Println("User ID:", user.ID)
+		fmt.Println("User Email:", user.Email)
+		// Print other user data as needed
+	}
 	return allUsers, nil
 
 }
@@ -142,7 +174,6 @@ func (s authService) processMessages(msg amqp.Delivery) (User, error) {
 		return User{}, err
 	}
 
-	// Process the data from the message (implement your business logic here)
 	fmt.Printf("processing user: %v\n", userData)
 	// Validate credentials (replace with your validation logic)
 
@@ -153,122 +184,6 @@ func (s authService) processMessages(msg amqp.Delivery) (User, error) {
 	}
 	return userData, nil
 }
-
-// if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
-// 	return err
-// }
-
-// accessToken, err = s.createAccessToken(userData)
-// if err != nil {
-// 	return err
-// }
-
-// refreshToken, err = s.refreshAccessToken(userData)
-// if err != nil {
-// 	return err
-// }
-
-// if err := s.authRepo.StoreToken(int(userData.ID), accessToken, time.Now().Add(72*time.Second)); err != nil {
-// 	fmt.Println("Error storing token:", err)
-// }
-
-// err = msg.Ack(false)
-// if err != nil {
-// 	fmt.Printf("Error acknowledging message: %v\n", err)
-// }
-
-// return nil
-
-// return param.LoginResponse{
-// 	User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email},
-// 	Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
-// }, nil
-
-//!----> handle wirh go routines
-// Hash the password from the incoming request
-// hashedPassword, err := HashPassword(user.Password)
-// if err != nil {
-// 	return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
-// }
-
-// ctxWithCan, cancel := context.WithCancel(context.Background())
-// defer cancel()
-
-// wg := sync.WaitGroup{}
-// wg.Add(1)
-
-// queueName := s.config.GetBrokerConfig().Queues[0].Name
-
-// // Initiate message consumption in a background goroutine
-// go func() {
-// 	defer wg.Done()
-
-// 	cErr := s.event.Consume(ctxWithCan, queueName, func(msg amqp.Delivery) error {
-// 		var userData User
-// 		err := json.Unmarshal(msg.Body, &userData)
-// 		if err != nil {
-// 			fmt.Printf("Error unmarshalling message: %v\n", err)
-// 			// Optional: You can potentially re-queue the message here
-// 			return err
-// 		}
-
-// 		// Validate credentials against data from the message
-// 		if err := bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(hashedPassword)); err != nil {
-// 			return err
-// 		}
-
-// 		// ... rest of your processing logic using userData ...
-// 		accessToken, err := s.createAccessToken(userData) // Assuming a helper function
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		refreshToken, err := s.refreshAccessToken(userData) // Assuming a helper function
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		if err := s.authRepo.StoreToken(int(userData.ID), accessToken,
-// 			time.Now().Add(72*time.Second)); err != nil {
-// 			fmt.Println("Error store token", err)
-// 		}
-
-// 		// Acknowledge the message after successful processing
-// 		err = msg.Ack(false)
-// 		if err != nil {
-// 			fmt.Printf("Error acknowledging message: %v\n", err)
-// 		}
-// 		return err
-// 	})
-// 	if cErr != nil {
-// 		fmt.Println("Error consuming messages:", cErr)
-// 		return cErr // Propagate error from Consume
-// 	}
-// }()
-
-// // Login function doesn't return anything until message processing finishes
-// wg.Wait() // Wait for the goroutine, blocking the login call
-
-// // Consider redesigning Login flow to be asynchronous (optional)
-
-// // Handle potential errors from the goroutine (optional)
-// if err != nil {
-// 	return param.LoginResponse{}, fmt.Errorf("login processing failed: %w", err)
-// }
-
-// // Placeholder for successful login response (assuming success from the goroutine)
-// return param.LoginResponse{
-// 	User:   param.UserInfo{ID: uint(userData.ID), Email: userData.Email}, // Might need modification
-// 	Tokens: param.Tokens{AccessToken: "", RefreshToken: ""},              // Placeholder values
-// }, nil
-//!----->
-
-// ?------->
-
-// ? just for signal
-// var userMsgReceived = make(chan struct{})
-
-// ! writer
 
 // ! helper function
 func HashPassword(password string) (string, error) {
@@ -285,27 +200,6 @@ func (s authService) createAccessToken(user User) (string, error) {
 
 func (s authService) refreshAccessToken(user User) (string, error) {
 	return s.createToken(user.ID, RefreshTokenSubject, RefreshTokenExpirationDuration)
-}
-
-func (s authService) VerifyToken(bearerToken string) (*Claims, error) {
-
-	tokenStr := strings.Replace(bearerToken, "Bearer ", "", 1)
-
-	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(JwtSignKey), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	// convert interface to conceret object
-	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		return claims, nil
-
-	} else {
-		return nil, err
-	}
 }
 
 // "github.com/golang-jwt/jwt/v4"
@@ -337,6 +231,27 @@ func (s authService) createToken(userID uint, subject string, expiresDuration ti
 	}
 
 	return tokenStr, nil
+}
+
+func (s authService) VerifyToken(bearerToken string) (*Claims, error) {
+
+	tokenStr := strings.Replace(bearerToken, "Bearer ", "", 1)
+
+	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(JwtSignKey), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// convert interface to conceret object
+	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+		return claims, nil
+
+	} else {
+		return nil, err
+	}
 }
 
 // func (s authService) AddRevokedToken(tokenID string) error {

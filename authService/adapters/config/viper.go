@@ -50,7 +50,6 @@ func (va *ViperAdapter) GetBrokerConfig() ports.BrokerConfig {
 	if err := va.viper.UnmarshalKey("rabbitmq", &brokerConfig); err != nil {
 		log.Printf("failed to unmarshal broker config: %v", err)
 	}
-	log.Printf("Broker Config: %+v", brokerConfig) // Debug log
 
 	return brokerConfig
 }

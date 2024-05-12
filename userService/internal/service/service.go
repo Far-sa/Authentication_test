@@ -65,8 +65,6 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 
 	us.logger.Info("User created successfully", zap.Any("user", createdUser))
 
-	fmt.Println("created user is: ", createdUser)
-
 	return param.RegisterResponse{
 		User: param.UserInfo{
 			ID:          createdUser.ID,
@@ -90,16 +88,6 @@ func (us Service) publishUserData(ctx context.Context, createdUser interface{}) 
 	if err := us.eventPublisher.DeclareExchange("user_events", "direct"); err != nil {
 		return fmt.Errorf("failed to declare exchange: %w", err)
 	}
-
-	// Declare Queue
-	// _, err := us.eventPublisher.CreateQueue("user_registrations", true, false)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create queue: %w", err)
-	// }
-
-	// if err := us.eventPublisher.CreateBinding(queueName, routeKey, exchangeName); err != nil {
-	// 	return fmt.Errorf("failed to create binding: %w", err)
-	// }
 
 	body, err := json.Marshal(createdUser)
 	if err != nil {
