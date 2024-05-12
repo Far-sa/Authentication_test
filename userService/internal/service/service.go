@@ -11,6 +11,7 @@ import (
 	"user-svc/ports"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -94,20 +95,20 @@ func (us Service) publishUserData(ctx context.Context, createdUser interface{}) 
 	// 	return fmt.Errorf("failed to create queue: %w", err) // Propagate error
 	// }
 
-	// if err := us.eventPublisher.CreateBinding(queue.Name, "auth_routing_key", "user_events"); err != nil {
+	// if err := us.eventPublisher.CreateBinding(queue.Name, "user_registered", "user_events"); err != nil {
 	// 	return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
 	// }
 
-	body, err := json.Marshal(createdUser)
+	data, err := json.Marshal(createdUser)
 	if err != nil {
 		return fmt.Errorf("failed to serialize user data: %w", err)
 	}
 
-	if err := us.eventPublisher.Publish(ctx, "user_events", "user.registered", amqp091.Publishing{
+	if err := us.eventPublisher.Publish(ctx, "user_events", "user_registered", amqp091.Publishing{
 		ContentType:   "text/plain",
 		DeliveryMode:  amqp091.Persistent,
-		Body:          []byte(body),
-		CorrelationId: "",
+		Body:          data,
+		CorrelationId: uuid.NewString(),
 	}); err != nil {
 		return fmt.Errorf("failed to publish user to auth-service: %w", err)
 	}

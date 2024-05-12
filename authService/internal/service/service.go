@@ -56,10 +56,6 @@ func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event po
 func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.LoginResponse, error) {
 
 	//! sequntial
-	hashedPassword, err := HashPassword(req.Password)
-	if err != nil {
-		return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
-	}
 
 	userData, err := s.consumeMessages()
 	if err != nil {
@@ -75,15 +71,21 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 			Email:    u.Email,
 			Password: u.Password,
 		}
-		fmt.Println("User ID:", u.ID)
-		fmt.Println("User Email:", u.Email)
+		log.Println("User ID:", u.ID)
+		log.Println("User Email:", u.Email)
+		log.Println("Password", u.Password)
 		// Extract other fields as needed
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(hashedPassword)); err != nil {
-		return param.LoginResponse{}, fmt.Errorf("failed to compare passwords: %w", err)
+	// hashedPassword, err := HashPassword(req.Password)
+	// if err != nil {
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
+	// }
 
-	}
+	// if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(user.Password)); err != nil {
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to compare passwords: %w", err)
+
+	// }
 
 	accessToken, err := s.createAccessToken(user)
 	if err != nil {
@@ -106,6 +108,7 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 
 }
 
+// TODO Bug- (change exchange)
 func (s authService) consumeMessages() ([]User, error) {
 	var allUsers []User // Declare a slice to store processed users
 
@@ -118,7 +121,7 @@ func (s authService) consumeMessages() ([]User, error) {
 		return nil, fmt.Errorf("failed to create queue: %w", err) // Propagate error
 	}
 
-	if err := s.event.CreateBinding(queue.Name, "auth_routing_key", "user_events"); err != nil {
+	if err := s.event.CreateBinding(queue.Name, "user_registered", "user_events"); err != nil {
 		return nil, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
 	}
 
@@ -129,15 +132,14 @@ func (s authService) consumeMessages() ([]User, error) {
 
 	var wg sync.WaitGroup
 	const numWorkers = 5
-	// Create a buffered channel to store messages
-	msgChan := make(chan amqp.Delivery, numWorkers)
+	resultChan := make(chan User, numWorkers) // Buffered channel for processed users
 
 	// Start worker goroutines to process messages concurrently
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for msg := range msgChan {
+			for msg := range msgs {
 				log.Printf("Received a message: %s", msg.Body)
 				userData, err := s.processMessages(msg)
 				if err != nil {
@@ -145,34 +147,28 @@ func (s authService) consumeMessages() ([]User, error) {
 					// Handle error or re-queue message if needed
 					continue
 				}
-				allUsers = append(allUsers, userData) // Add processed user to the slice
+				resultChan <- userData // Send processed user to the channel
+				// allUsers = append(allUsers, userData) // Add processed user to the slice
 			}
 		}()
 	}
 
-	log.Println("Waiting for messages. To exit press CTRL+C")
-
-	// Start a goroutine to read messages from the event and send them to the channel
 	go func() {
-		for msg := range msgs {
-			msgChan <- msg
-		}
+		wg.Wait()
+		close(resultChan) // Close the channel once all workers finish
 	}()
 
-	// Wait for all worker goroutines to finish
-	wg.Wait()
-	// Print the data after all messages have been processed
-	for _, user := range allUsers {
-		fmt.Println("User ID:", user.ID)
-		fmt.Println("User Email:", user.Email)
-		// Print other user data as needed
+	// Collect results from the channel
+	for userData := range resultChan {
+		allUsers = append(allUsers, userData)
 	}
-	return allUsers, nil
 
+	return allUsers, nil
 }
 
 func (s authService) processMessages(msg amqp.Delivery) (User, error) {
 	var userData User
+
 	err := json.Unmarshal(msg.Body, &userData)
 	if err != nil {
 		fmt.Printf("Error unmarshalling message: %v\n", err)
@@ -183,29 +179,28 @@ func (s authService) processMessages(msg amqp.Delivery) (User, error) {
 	fmt.Printf("processing user: %v\n", userData)
 	// Validate credentials (replace with your validation logic)
 
-	// Publish the new message with processed data and message ID
-	processedData, err := json.Marshal(userData)
-	if err != nil {
-		return User{}, err
-	}
+	//! Publish the new message with processed data and message ID
+	// processedData, err := json.Marshal(userData)
+	// if err != nil {
+	// 	return User{}, err
+	// }
 
-	//! exchange/route/
-	err = s.event.PublishMessage("user_processed_events", "auth_routing_key", amqp.Publishing{
-		ContentType:   "application/json",
-		DeliveryMode:  amqp.Persistent,
-		Body:          []byte(processedData),
-		CorrelationId: msg.MessageId,
-	})
-	if err != nil {
-		fmt.Printf("Error publishing processed message: %v\n", err)
-	}
+	// err = s.event.PublishMessage("user_processed_events", "auth_routing_key", amqp.Publishing{
+	// 	ContentType:   "application/json",
+	// 	DeliveryMode:  amqp.Persistent,
+	// 	Body:          []byte(processedData),
+	// 	CorrelationId: msg.MessageId,
+	// })
+	// if err != nil {
+	// 	fmt.Printf("Error publishing processed message: %v\n", err)
+	// }
 
 	return userData, nil
 }
 
 // ! helper function
 func HashPassword(password string) (string, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 	if err != nil {
 		return "", err
 	}
