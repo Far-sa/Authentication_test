@@ -31,6 +31,11 @@ func (rc *RabbitMQClient) GetChannel() (*amqp.Channel, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if err := ch.Confirm(false); err != nil {
+		return nil, nil
+	}
+
 	return ch, nil
 }
 

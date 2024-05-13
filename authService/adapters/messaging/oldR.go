@@ -1,105 +1,103 @@
 package messaging
 
 // import (
-// 	"auth-svc/internal/ports"
-// 	"context"
-// 	"fmt"
 // 	"log"
+// 	"os"
+// 	"os/signal"
+// 	"syscall"
 
 // 	amqp "github.com/rabbitmq/amqp091-go"
 // )
 
-// type RabbitClient struct {
-// 	config ports.Config
-// 	conn   *amqp.Connection
-// 	ch     *amqp.Channel
+// // ! Consumer
+// type RabbitMQ struct {
+// 	conn *amqp.Connection
+// 	ch   *amqp.Channel
 // }
 
-// func NewRabbitMQClient(config ports.Config) (RabbitClient, error) {
+// func NewRabbit() (*RabbitMQ, error) {
+// 	rabbitMQURL := "amqp://guest:guest@rabbitmq:5672/"
 
-// 	cfg := config.GetBrokerConfig()
-
-// 	dsn := fmt.Sprintf("amqp://%s:%s@%s:%s/", cfg.User, cfg.Password, cfg.Host, cfg.Port)
-
-// 	fmt.Println("dsn auth-svc: ", dsn)
-
-// 	conn, err := amqp.Dial(dsn)
+// 	conn, err := amqp.Dial(rabbitMQURL)
 // 	if err != nil {
-// 		log.Fatalf("Error connecting to RabbitMQ: %s", err)
-// 		return RabbitClient{}, fmt.Errorf("error connecting to RabbitMQ: %w", err)
+// 		return nil, err
 // 	}
 
 // 	ch, err := conn.Channel()
 // 	if err != nil {
-// 		log.Fatalf("Error opening channel: %s", err)
-// 		conn.Close() // Close the connection if channel opening fails
-// 		return RabbitClient{}, fmt.Errorf("error opening channel: %w", err)
+// 		conn.Close()
+// 		return nil, err
 // 	}
 
-// 	if ch == nil {
-// 		log.Fatal("RabbitMQ channel is nil")
-// 	}
-
-// 	// Defer closing the connection to ensure it's closed even in case of errors
-// 	if err := ch.Confirm(false); err != nil {
-// 		return RabbitClient{}, nil
-// 	}
-
-// 	return RabbitClient{
-// 		config: config,
-// 		conn:   conn,
-// 		ch:     ch,
-// 	}, nil
-// }
-
-// func (rc RabbitClient) Close() error {
-// 	return rc.ch.Close()
-// }
-
-// func (rc RabbitClient) DeclareExchange(name, kind string) error {
-// 	return rc.ch.ExchangeDeclare(name, kind, true, false, false, false, nil)
-// }
-
-// func (rc RabbitClient) CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error) {
-// 	q, err := rc.ch.QueueDeclare(queueName, durable, autodelete, false, false, nil)
-// 	if err != nil {
-// 		return amqp.Queue{}, nil
-// 	}
-// 	return q, err
-// }
-
-// // * for binding exchange to queue
-// func (rc RabbitClient) CreateBinding(name, binding, exchange string) error {
-// 	return rc.ch.QueueBind(name, binding, exchange, false, nil)
-// }
-
-// // type ConsumeResult struct {
-// // 	Messages <-chan amqp.Delivery
-// // 	Closed   bool
-// // }
-
-// func (rc RabbitClient) Consume(ctx context.Context, queue, consumer string) (<-chan amqp.Delivery, error) {
-// 	return rc.ch.Consume(queue, consumer, false, false, false, false, nil)
-// }
-
-// func (rc RabbitClient) PublishMessage(
-// 	ctx context.Context,
-// 	exchange, routingKey string,
-// 	options amqp.Publishing,
-// ) error {
-// 	confirmation, err := rc.ch.PublishWithDeferredConfirmWithContext(
-// 		ctx,
-// 		exchange,
-// 		routingKey,
-// 		true,
-// 		false,
-// 		options,
+// 	err = ch.ExchangeDeclare(
+// 		"topic_exchange", // name
+// 		"topic",          // type
+// 		true,             // durable
+// 		false,            // auto-deleted
+// 		false,            // internal
+// 		false,            // no-wait
+// 		nil,              // arguments
 // 	)
 // 	if err != nil {
-// 		return err
+// 		conn.Close()
+// 		ch.Close()
+// 		return nil, err
 // 	}
 
-// 	log.Println(confirmation.Wait())
-// 	// confirmation.Wait()
-// 	return nil
+// 	q, err := ch.QueueDeclare(
+// 		"registration_queue", // name
+// 		true,                 // durable
+// 		false,                // delete when unused
+// 		false,                // exclusive
+// 		false,                // no-wait
+// 		nil,                  // arguments
+// 	)
+// 	if err != nil {
+// 		conn.Close()
+// 		ch.Close()
+// 		return nil, err
+// 	}
+
+// 	err = ch.QueueBind(
+// 		q.Name,           // queue name
+// 		"registration.*", // routing key
+// 		"topic_exchange", // exchange
+// 		false,            // no-wait
+// 		nil,              // arguments
+// 	)
+// 	if err != nil {
+// 		conn.Close()
+// 		ch.Close()
+// 		return nil, err
+// 	}
+// 	msgs, err := ch.Consume(
+// 		"registration_queue", // queue
+// 		"",                   // consumer
+// 		false,                // auto-ack (set to false for manual ack)
+// 		false,                // exclusive
+// 		false,                // no-local
+// 		false,                // no-wait
+// 		nil,                  // args
+// 	)
+// 	if err != nil {
+// 		conn.Close()
+// 		ch.Close()
+// 		return nil, err
+// 	}
+
+// 	signals := make(chan os.Signal, 1)
+// 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+// 	go func() {
+// 		for d := range msgs {
+// 			log.Printf("Received a message: %s", d.Body)
+// 			// Acknowledge the message
+// 			d.Ack(false)
+// 		}
+// 	}()
+
+// 	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+// 	<-signals
+
+// 	return &RabbitMQ{conn: conn, ch: ch}, nil
 // }
