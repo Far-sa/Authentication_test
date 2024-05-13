@@ -12,9 +12,10 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
-	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+	amqp "github.com/rabbitmq/amqp091-go"
+
 )
 
 // TODO: add config - zap logger as singleton
@@ -99,9 +100,9 @@ func (us Service) publishUserData(ctx context.Context, createdUser interface{}) 
 		return fmt.Errorf("failed to serialize user data: %w", jErr)
 	}
 
-	if err := us.eventPublisher.Publish(ctx, "user_events", "registration.new", amqp091.Publishing{
+	if err := us.eventPublisher.Publish(ctx, "user_events", "registration.new", amqp.Publishing{
 		ContentType:   "text/plain",
-		DeliveryMode:  amqp091.Persistent,
+		DeliveryMode:  amqp.Persistent,
 		Body:          data,
 		CorrelationId: uuid.NewString(),
 	}); err != nil {

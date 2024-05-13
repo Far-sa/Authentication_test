@@ -1,201 +1,178 @@
 package service
 
+
 import (
+	"auth-svc/internal/param"
+	"auth-svc/internal/ports"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
+	"errors"
 
 	"github.com/golang-jwt/jwt/v4"
+	"golang.org/x/crypto/bcrypt"
+	//"github.com/dgrijalva/jwt-go"
 )
 
-// import (
-// 	"strings"
-// 	"time"
-
-// 	"github.com/golang-jwt/jwt/v4"
-// )
-
-// import (
-// 	"auth-svc/internal/param"
-// 	"auth-svc/internal/ports"
-// 	"context"
-// 	"encoding/json"
-// 	"fmt"
-// 	"log"
-// 	"os"
-// 	"os/signal"
-// 	"strings"
-// 	"syscall"
-// 	"time"
-
-// 	"github.com/golang-jwt/jwt/v4"
-// 	amqp "github.com/rabbitmq/amqp091-go"
-// 	"golang.org/x/crypto/bcrypt"
-// 	//"github.com/dgrijalva/jwt-go"
-// )
-
-// type Config struct {
-// 	JwtSignKey                     string
-// 	AccessTokenSubject             string
-// 	RefreshTokenSubject            string
-// 	AccessTokenExpirationDuration  time.Duration
-// 	RefreshTokenExpirationDuration time.Duration
-// }
+type Config struct {
+	JwtSignKey                     string
+	AccessTokenSubject             string
+	RefreshTokenSubject            string
+	AccessTokenExpirationDuration  time.Duration
+	RefreshTokenExpirationDuration time.Duration
+}
 
 // TODO: add to config
-// const (
-// 	JwtSignKey                     = "jwt-secret"
-// 	AccessTokenSubject             = "at"
-// 	RefreshTokenSubject            = "rt"
-// 	AccessTokenExpirationDuration  = time.Hour * 24
-// 	RefreshTokenExpirationDuration = time.Hour * 24 * 7
-// )
+const (
+	JwtSignKey                     = "jwt-secret"
+	AccessTokenSubject             = "at"
+	RefreshTokenSubject            = "rt"
+	AccessTokenExpirationDuration  = time.Hour * 24
+	RefreshTokenExpirationDuration = time.Hour * 24 * 7
+)
 
-// type authService struct {
-// 	config   ports.Config
-// 	authRepo ports.AuthRepository
-// 	event    ports.EventPublisher
-// 	// event    ports.EventPublisher
-// }
+type authService struct {
+	config   ports.Config
+	authRepo ports.AuthRepository
+	event    ports.EventPublisher
+	// event    ports.EventPublisher
+}
 
 // User represents the user data received from the message
-// type User struct {
-// 	ID       uint   `json:"id"`
-// 	Email    string `json:"email"`
-// 	Password string `json:"password"`
-// }
+type User struct {
+	ID       uint   `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
 
-// // NewTokenHandler creates a new TokenHandler with the given authService
-// func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event ports.EventPublisher) authService {
-// 	return authService{config: config, authRepo: authRepo, event: event}
-// }
+// NewTokenHandler creates a new TokenHandler with the given authService
+func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event ports.EventPublisher) authService {
+	return authService{config: config, authRepo: authRepo, event: event}
+}
 
-// func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.LoginResponse, error) {
+func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.LoginResponse, error) {
 
-// 	//! sequntial
+	//! sequntial
 
-// 	err := s.consumeMessages()
-// 	if err != nil {
-// 		return param.LoginResponse{}, fmt.Errorf("failed to consume messages: %w", err)
-// 	}
+	userChan, err := s.consumeMessages()
+	if err != nil {
+		return param.LoginResponse{}, fmt.Errorf("failed to consume messages: %w", err)
+	}
 
-// 	var user User
+	select {
+	case <-ctx.Done():
+		// Handle timeout or context cancellation
+		return param.LoginResponse{}, errors.New("timed out waiting for user information")
+	case data := <-userChan:
+		user, ok := data.(User) // Cast data to the User struct
+		if !ok {
+			return param.LoginResponse{}, errors.New("invalid data received from queue")
+		}
 
-// 	Iterate over userData slice and extract data
-// 	for _, u := range userData {
+		// hashedPassword, err := HashPassword(req.Password)
+		// if err != nil {
+		// 	return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
+		// }
 
-// 		user = User{
-// 			ID:       u.ID,
-// 			Email:    u.Email,
-// 			Password: u.Password,
-// 		}
-// 		log.Println("User ID:", u.ID)
-// 		log.Println("User Email:", u.Email)
-// 		log.Println("Password", u.Password)
-// 		// Extract other fields as needed
-// 	}
+		// if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(user.Password)); err != nil {
+		// 	return param.LoginResponse{}, fmt.Errorf("failed to compare passwords: %w", err)
 
-// 	hashedPassword, err := HashPassword(req.Password)
-// 	if err != nil {
-// 		return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
-// 	}
+		// }
 
-// 	if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(user.Password)); err != nil {
-// 		return param.LoginResponse{}, fmt.Errorf("failed to compare passwords: %w", err)
+		accessToken, err := s.createAccessToken(user)
+		if err != nil {
+			return param.LoginResponse{}, fmt.Errorf("failed to create access token: %w", err)
+		}
 
-// 	}
+		refreshToken, err := s.refreshAccessToken(user)
+		if err != nil {
+			return param.LoginResponse{}, fmt.Errorf("failed to create refresh token: %w", err)
+		}
 
-// 	accessToken, err := s.createAccessToken(user)
-// 	if err != nil {
-// 		return param.LoginResponse{}, fmt.Errorf("failed to create access token: %w", err)
-// 	}
+		if err := s.authRepo.StoreToken(int(user.ID), accessToken, time.Now().Add(72*time.Hour)); err != nil {
+			fmt.Println("Error storing token:", err)
+		}
 
-// 	refreshToken, err := s.refreshAccessToken(user)
-// 	if err != nil {
-// 		return param.LoginResponse{}, fmt.Errorf("failed to create refresh token: %w", err)
-// 	}
-
-// 	if err := s.authRepo.StoreToken(int(user.ID), accessToken, time.Now().Add(72*time.Hour)); err != nil {
-// 		fmt.Println("Error storing token:", err)
-// 	}
-
-// 	return param.LoginResponse{
-// 		User:   param.UserInfo{ID: uint(user.ID), Email: user.Email},
-// 		Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
-// 	}, nil
-
-// }
+		return param.LoginResponse{
+			User:   param.UserInfo{ID: uint(user.ID), Email: user.Email},
+			Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
+		}, nil
+	}
+}
 
 // TODO Bug- (change exchange)
-// func (s authService) consumeMessages() ([]User, error) {
+func (s authService) consumeMessages() ( <-chan interface{},error) {
 
-// 	var allUsers []User // Declare a slice to store processed users
+	msgs, err := s.event.Consume("registration_queue", "auth_consumer", false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to consume messages: %w", err)
+	}
 
-// 	if err := s.event.DeclareExchange("user_events", "topic"); err != nil {
-// 		return nil, fmt.Errorf("failed to create exchange: %w", err) // Propagate error
-// 	}
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-// 	queue, err := s.event.CreateQueue("registrations_queue", true, false)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to create queue: %w", err) // Propagate error
-// 	}
+	userChannel := make(chan interface{})
 
-// 	if err := s.event.CreateBinding(queue.Name, "registration.*", "user_events"); err != nil {
-// 		return nil, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
-// 	}
+	go func() {
+		for d := range msgs {
+			var user User
+			err := json.Unmarshal(d.Body, &user)
+			if err != nil {
+				log.Println("Error unmarshalling data:", err)
+				// Handle the error accordingly
+			} else {
+				// Process the user data as needed
+				userChannel <- user
+				// Acknowledge the message after processing
+				d.Ack(false)
+			}
+		}
+	}()
 
-// 	msgs, err := s.event.Consume(queue.Name, "auth_consumer", false)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to consume messages: %w", err)
-// 	}
+	log.Println("Consuming, to close the program press CTRL+C")
+	<-signals
+		return userChannel, nil
 
-// 	signals := make(chan os.Signal, 1)
-// 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-// 	go func() {
-// 		for message := range msgs {
-// 			log.Printf("Received a message: %s", message.Body)
-// 			message.Ack(false)
+	// Pvar wg sync.WaitGroup
+	// const numWorkers = 5
+	// resultChan := make(chan User, numWorkers) // Buffered channel for processed users
 
-// 		}
-// 	}()
+	// // Start worker goroutines to process messages concurrently
+	// for i := 0; i < numWorkers; i++ {
+	// 	wg.Add(1)
+	// 	go func() {
+	// 		defer wg.Done()
+	// 		for msg := range msgs {
+	// 			log.Printf("Received a message: %s", msg.Body)
+	// 			userData, err := s.processMessages(msg)
+	// 			if err != nil {
+	// 				log.rintf("Error processing message: %v", err)
+	// 				// Handle error or re-queue message if needed
+	// 				continue
+	// 			}
+	// 			resultChan <- userData // Send processed user to the channel
+	// 			// allUsers = append(allUsers, userData) // Add processed user to the slice
+	// 		}
+	// 	}()
+	// }
 
-// 	log.Println("Consuming, to close the program press CTRL+C")
-// 	<-signals
+	// go func() {
+	// 	wg.Wait()
+	// 	close(resultChan) // Close the channel once all workers finish
+	// }()
 
-// 	var wg sync.WaitGroup
-// 	const numWorkers = 5
-// 	resultChan := make(chan User, numWorkers) // Buffered channel for processed users
+	// // Collect results from the channel
+	// for userData := range resultChan {
+	// 	allUsers = append(allUsers, userData)
+	// }
 
-// 	// Start worker goroutines to process messages concurrently
-// 	for i := 0; i < numWorkers; i++ {
-// 		wg.Add(1)
-// 		go func() {
-// 			defer wg.Done()
-// 			for msg := range msgs {
-// 				log.Printf("Received a message: %s", msg.Body)
-// 				userData, err := s.processMessages(msg)
-// 				if err != nil {
-// 					log.Printf("Error processing message: %v", err)
-// 					// Handle error or re-queue message if needed
-// 					continue
-// 				}
-// 				resultChan <- userData // Send processed user to the channel
-// 				// allUsers = append(allUsers, userData) // Add processed user to the slice
-// 			}
-// 		}()
-// 	}
-
-// 	go func() {
-// 		wg.Wait()
-// 		close(resultChan) // Close the channel once all workers finish
-// 	}()
-
-// 	// Collect results from the channel
-// 	for userData := range resultChan {
-// 		allUsers = append(allUsers, userData)
-// 	}
-
-// 	return allUsers, nil
-// }
+}
 
 // func (s authService) processMessages(msg amqp.Delivery) (User, error) {
 // 	var userData User
@@ -230,13 +207,13 @@ import (
 // }
 
 // ! helper function
-// func HashPassword(password string) (string, error) {
-// 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 8)
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	return string(hashedPassword), nil
-// }
+func HashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 8)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
+}
 
 func (s authService) createAccessToken(user User) (string, error) {
 	return s.createToken(user.ID, AccessTokenSubject, AccessTokenExpirationDuration)
