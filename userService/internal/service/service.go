@@ -11,7 +11,8 @@ import (
 	"user-svc/ports"
 
 	"github.com/golang-jwt/jwt/v4"
-	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/google/uuid"
+	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -80,97 +81,33 @@ func (us Service) Register(ctx context.Context, req param.RegisterRequest) (para
 
 func (us Service) publishUserData(ctx context.Context, createdUser interface{}) error {
 
-	rabbitMQURL := "amqp://guest:guest@rabbitmq:5672/"
-
-	conn, err := amqp.Dial(rabbitMQURL)
-	if err != nil {
-		return err
+	if err := us.eventPublisher.DeclareExchange("user_events", "topic"); err != nil {
+		return fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
-	ch, err := conn.Channel()
+	queue, err := us.eventPublisher.CreateQueue("registration_queue", true, false)
 	if err != nil {
-		conn.Close()
-		return err
-	}
-	err = ch.ExchangeDeclare(
-		"topic_exchange", // name
-		"topic",          // type
-		true,             // durable
-		false,            // auto-deleted
-		false,            // internal
-		false,            // no-wait
-		nil,              // arguments
-	)
-	if err != nil {
-		log.Fatalf("Failed to declare an exchange: %v", err)
+		return fmt.Errorf("failed to create queue: %w", err) // Propagate error
 	}
 
-	// Declare the queue (ideally do this once per application)
-	q, err := ch.QueueDeclare(
-		"registration_queue", // name
-		true,                 // durable
-		false,                // delete when unused
-		false,                // exclusive
-		false,                // no-wait
-		nil,                  // arguments
-	)
-	if err != nil {
-		log.Fatal("Failed to declare queue:", err)
+	if err := us.eventPublisher.CreateBinding(queue.Name, "registration.*", "user_events"); err != nil {
+		return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
 	}
 
-	// Bind the queue to the exchange with a routing key
-	err = ch.QueueBind(
-		q.Name,           // queue name
-		"registration.*", // routing key
-		"topic_exchange", // exchange
-		false,            // no-wait
-		nil,              // arguments
-	)
-	if err != nil {
-		log.Fatal("Failed to bind queue:", err)
+	data, jErr := json.Marshal(createdUser)
+	if jErr != nil {
+		return fmt.Errorf("failed to serialize user data: %w", jErr)
 	}
 
-	data, err := json.Marshal(createdUser)
-	if err != nil {
-		return fmt.Errorf("failed to serialize user data: %w", err)
+	if err := us.eventPublisher.Publish(ctx, "user_events", "registration.new", amqp091.Publishing{
+		ContentType:   "text/plain",
+		DeliveryMode:  amqp091.Persistent,
+		Body:          data,
+		CorrelationId: uuid.NewString(),
+	}); err != nil {
+		return fmt.Errorf("failed to publish user to auth-service: %w", err)
 	}
-
-	//body := "New user registered: John Doe"
-	err = ch.Publish(
-		"topic_exchange",   // exchange
-		"registration.new", // routing key
-		false,              // mandatory
-		false,              // immediate
-		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(data),
-		})
-	if err != nil {
-		log.Fatalf("Failed to publish a message: %v", err)
-	}
-
-	log.Printf(" [x] Sent %s", data)
-
-	//!!!!!
-
-	// if err := us.eventPublisher.DeclareExchange("user_events", "topic"); err != nil {
-	// 	return fmt.Errorf("failed to declare exchange: %w", err)
-	// }
-
-	// data, err := json.Marshal(createdUser)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to serialize user data: %w", err)
-	// }
-
-	// if err := us.eventPublisher.Publish(ctx, "user_events", "registration.new", amqp091.Publishing{
-	// 	ContentType:   "text/plain",
-	// 	DeliveryMode:  amqp091.Persistent,
-	// 	Body:          data,
-	// 	CorrelationId: uuid.NewString(),
-	// }); err != nil {
-	// 	return fmt.Errorf("failed to publish user to auth-service: %w", err)
-	// }
-	// log.Println("User event published successfully")
+	log.Println("User event published successfully")
 
 	return nil
 }

@@ -33,6 +33,11 @@ func (rc *RabbitMQClient) GetChannel() (*amqp.Channel, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Enable publisher confirms on the channel
+	if err := ch.Confirm(false); err != nil {
+		return nil, err
+	}
+
 	return ch, nil
 }
 
