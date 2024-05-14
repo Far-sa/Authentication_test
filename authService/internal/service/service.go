@@ -8,10 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -74,11 +71,21 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 			return param.LoginResponse{}, errors.New("invalid data received from queue")
 		}
 
+		//TODO check
 		// hashedPassword, err := HashPassword(req.Password)
 		// if err != nil {
 		// 	return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
 		// }
 
+		// Call comparePassword function (assuming it's defined elsewhere)
+		// valid, err := comparePassword(hashedReqPassword, user.Password)
+		// if err != nil {
+		// 	return param.LoginResponse{}, fmt.Errorf("failed to compare password: %w", err)
+		// }
+
+		// if !valid {
+		// 	return param.LoginResponse{}, errors.New("invalid password") // Indicate invalid password
+		// }
 		// if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(user.Password)); err != nil {
 		// 	return param.LoginResponse{}, fmt.Errorf("failed to compare passwords: %w", err)
 
@@ -113,9 +120,6 @@ func (s authService) consumeMessages() (<-chan interface{}, error) {
 		return nil, fmt.Errorf("failed to consume messages: %w", err)
 	}
 
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-
 	userChannel := make(chan interface{})
 
 	go func() {
@@ -123,7 +127,7 @@ func (s authService) consumeMessages() (<-chan interface{}, error) {
 
 		for d := range msgs {
 			var user User
-			err := json.Unmarshal(d.Body, &user)
+			user, err := unmarshalUser(d.Body) // Call unmarshalUser function
 			if err != nil {
 				log.Println("Error unmarshalling data:", err)
 				// Handle the error accordingly
@@ -137,42 +141,25 @@ func (s authService) consumeMessages() (<-chan interface{}, error) {
 	}()
 
 	log.Println("Consuming, to close the program press CTRL+C")
-	<-signals
 	return userChannel, nil
 
-	// Pvar wg sync.WaitGroup
-	// const numWorkers = 5
-	// resultChan := make(chan User, numWorkers) // Buffered channel for processed users
+}
 
-	// // Start worker goroutines to process messages concurrently
-	// for i := 0; i < numWorkers; i++ {
-	// 	wg.Add(1)
-	// 	go func() {
-	// 		defer wg.Done()
-	// 		for msg := range msgs {
-	// 			log.Printf("Received a message: %s", msg.Body)
-	// 			userData, err := s.processMessages(msg)
-	// 			if err != nil {
-	// 				log.rintf("Error processing message: %v", err)
-	// 				// Handle error or re-queue message if needed
-	// 				continue
-	// 			}
-	// 			resultChan <- userData // Send processed user to the channel
-	// 			// allUsers = append(allUsers, userData) // Add processed user to the slice
-	// 		}
-	// 	}()
-	// }
+func unmarshalUser(data []byte) (User, error) {
+	var user User
+	err := json.Unmarshal(data, &user)
+	return user, err
+}
 
-	// go func() {
-	// 	wg.Wait()
-	// 	close(resultChan) // Close the channel once all workers finish
-	// }()
-
-	// // Collect results from the channel
-	// for userData := range resultChan {
-	// 	allUsers = append(allUsers, userData)
-	// }
-
+func comparePassword(hashedReqPassword string, hashedPassword string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(hashedReqPassword))
+	if err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return false, nil // Indicate invalid password without revealing hashing details
+		}
+		return false, fmt.Errorf("failed to compare password: %w", err)
+	}
+	return true, nil // Password matches
 }
 
 // func (s authService) processMessages(msg amqp.Delivery) (User, error) {
@@ -314,4 +301,38 @@ func (s authService) VerifyToken(bearerToken string) (*Claims, error) {
 // 	// Extract token from cookies or query parameters if needed
 
 // 	return ""
+// }
+
+//!!
+// var wg sync.WaitGroup
+// const numWorkers = 5
+// resultChan := make(chan User, numWorkers) // Buffered channel for processed users
+
+// // Start worker goroutines to process messages concurrently
+// for i := 0; i < numWorkers; i++ {
+// 	wg.Add(1)
+// 	go func() {
+// 		defer wg.Done()
+// 		for msg := range msgs {
+// 			log.Printf("Received a message: %s", msg.Body)
+// 			userData, err := s.processMessages(msg)
+// 			if err != nil {
+// 				log.rintf("Error processing message: %v", err)
+// 				// Handle error or re-queue message if needed
+// 				continue
+// 			}
+// 			resultChan <- userData // Send processed user to the channel
+// 			// allUsers = append(allUsers, userData) // Add processed user to the slice
+// 		}
+// 	}()
+// }
+
+// go func() {
+// 	wg.Wait()
+// 	close(resultChan) // Close the channel once all workers finish
+// }()
+
+// // Collect results from the channel
+// for userData := range resultChan {
+// 	allUsers = append(allUsers, userData)
 // }
