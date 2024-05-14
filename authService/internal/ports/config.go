@@ -4,9 +4,9 @@ type Config interface {
 	//LoadConfig(filePth string) error
 	GetDatabaseConfig() DatabaseConfig
 	GetHTTPConfig() HTTPConfig
-	GetConstants() Constants
-	GetStatics() Statics
-	GetLoggerConfig() LoggerConfig
+	// GetConstants() Constants
+	// GetStatics() Statics
+	// GetLoggerConfig() LoggerConfig
 	GetBrokerConfig() BrokerConfig
 }
 

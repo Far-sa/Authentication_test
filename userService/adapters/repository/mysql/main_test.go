@@ -27,7 +27,6 @@ func TestNewMysqlDB(t *testing.T) {
 		Port:     3306,
 		DBName:   "test_database",
 	}
-	_ = expectedDbConfig
 
 	// Set expectations for the mock objects
 	mockConfig.On("GetDatabaseConfig").Return(expectedDbConfig)
