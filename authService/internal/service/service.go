@@ -1,11 +1,11 @@
 package service
 
-
 import (
 	"auth-svc/internal/param"
 	"auth-svc/internal/ports"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -13,7 +13,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"errors"
 
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -107,7 +106,7 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 }
 
 // TODO Bug- (change exchange)
-func (s authService) consumeMessages() ( <-chan interface{},error) {
+func (s authService) consumeMessages() (<-chan interface{}, error) {
 
 	msgs, err := s.event.Consume("registration_queue", "auth_consumer", false)
 	if err != nil {
@@ -120,6 +119,8 @@ func (s authService) consumeMessages() ( <-chan interface{},error) {
 	userChannel := make(chan interface{})
 
 	go func() {
+		defer close(userChannel)
+
 		for d := range msgs {
 			var user User
 			err := json.Unmarshal(d.Body, &user)
@@ -137,7 +138,7 @@ func (s authService) consumeMessages() ( <-chan interface{},error) {
 
 	log.Println("Consuming, to close the program press CTRL+C")
 	<-signals
-		return userChannel, nil
+	return userChannel, nil
 
 	// Pvar wg sync.WaitGroup
 	// const numWorkers = 5
