@@ -71,25 +71,14 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 			return param.LoginResponse{}, errors.New("invalid data received from queue")
 		}
 
-		//TODO check
-		// hashedPassword, err := HashPassword(req.Password)
-		// if err != nil {
-		// 	return param.LoginResponse{}, fmt.Errorf("failed to hash password: %w", err)
-		// }
+		valid, err := comparePassword(user.Password, req.Password)
+		if err != nil {
+			return param.LoginResponse{}, fmt.Errorf("failed to compare password: %w", err)
+		}
 
-		// Call comparePassword function (assuming it's defined elsewhere)
-		// valid, err := comparePassword(hashedReqPassword, user.Password)
-		// if err != nil {
-		// 	return param.LoginResponse{}, fmt.Errorf("failed to compare password: %w", err)
-		// }
-
-		// if !valid {
-		// 	return param.LoginResponse{}, errors.New("invalid password") // Indicate invalid password
-		// }
-		// if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(user.Password)); err != nil {
-		// 	return param.LoginResponse{}, fmt.Errorf("failed to compare passwords: %w", err)
-
-		// }
+		if !valid {
+			return param.LoginResponse{}, errors.New("invalid password") // Indicate invalid password
+		}
 
 		accessToken, err := s.createAccessToken(user)
 		if err != nil {
@@ -126,6 +115,9 @@ func (s authService) consumeMessages() (<-chan interface{}, error) {
 		defer close(userChannel)
 
 		for d := range msgs {
+			// Print the raw data received from the queue
+			fmt.Println("Raw data:", string(d.Body))
+
 			var user User
 			user, err := unmarshalUser(d.Body) // Call unmarshalUser function
 			if err != nil {
@@ -151,8 +143,8 @@ func unmarshalUser(data []byte) (User, error) {
 	return user, err
 }
 
-func comparePassword(hashedReqPassword string, hashedPassword string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(hashedReqPassword))
+func comparePassword(hashedPassword, reqPassword string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(reqPassword))
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 			return false, nil // Indicate invalid password without revealing hashing details
@@ -160,47 +152,6 @@ func comparePassword(hashedReqPassword string, hashedPassword string) (bool, err
 		return false, fmt.Errorf("failed to compare password: %w", err)
 	}
 	return true, nil // Password matches
-}
-
-// func (s authService) processMessages(msg amqp.Delivery) (User, error) {
-// 	var userData User
-
-// 	err := json.Unmarshal(msg.Body, &userData)
-// 	if err != nil {
-// 		fmt.Printf("Error unmarshalling message: %v\n", err)
-// 		// Optional: You can potentially re-queue the message here
-// 		return User{}, err
-// 	}
-
-// 	fmt.Printf("processing user: %v\n", userData)
-// 	// Validate credentials (replace with your validation logic)
-
-// 	//! Publish the new message with processed data and message ID
-// 	processedData, err := json.Marshal(userData)
-// 	if err != nil {
-// 		return User{}, err
-// 	}
-
-// 	err = s.event.PublishMessage("user_processed_events", "auth_routing_key", amqp.Publishing{
-// 		ContentType:   "application/json",
-// 		DeliveryMode:  amqp.Persistent,
-// 		Body:          []byte(processedData),
-// 		CorrelationId: msg.MessageId,
-// 	})
-// 	if err != nil {
-// 		fmt.Printf("Error publishing processed message: %v\n", err)
-// 	}
-
-// 	return userData, nil
-// }
-
-// ! helper function
-func HashPassword(password string) (string, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 8)
-	if err != nil {
-		return "", err
-	}
-	return string(hashedPassword), nil
 }
 
 func (s authService) createAccessToken(user User) (string, error) {

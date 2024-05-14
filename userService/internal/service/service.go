@@ -12,10 +12,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
-	amqp "github.com/rabbitmq/amqp091-go"
-
 )
 
 // TODO: add config - zap logger as singleton
@@ -40,7 +39,7 @@ func NewService(cfg ports.Config, repo ports.UserRepository, publisher ports.Eve
 func (us Service) Register(ctx context.Context, req param.RegisterRequest) (param.RegisterResponse, error) {
 
 	// hashed, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 8)
-	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), 8)
+	hashed, err := HashPassword(req.Password)
 	if err != nil {
 		us.logger.Error("Error generating hashed password", zap.Error(err))
 		return param.RegisterResponse{}, fmt.Errorf("error generating hashed password: %v", err)
@@ -133,6 +132,15 @@ func (us Service) GenerateToken(userID uint, expiration time.Duration) (string, 
 }
 
 // ! Helper functions
+func HashPassword(password string) (string, error) {
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 8)
+	if err != nil {
+		return "", err
+	}
+
+	return string(hashedPassword), nil
+}
 
 func mapUintToByte(num uint) byte {
 	// Since byte is an alias for uint8, we can directly cast uint to byte
