@@ -42,3 +42,61 @@ func TestLoginHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 }
+
+func TestLoginHandler_TableDriven(t *testing.T) {
+	type testCase struct {
+		name         string
+		requestBody  interface{}
+		expectedCode int
+		expectedResp param.LoginResponse
+	}
+
+	cases := []testCase{
+		{
+			name:         "Valid Login Request",
+			requestBody:  map[string]string{"username": "test_user", "password": "test_password"},
+			expectedCode: http.StatusOK,
+			expectedResp: param.LoginResponse{User: param.UserInfo{ID: 1, PhoneNumber: "", Email: ""}, Tokens: param.Tokens{AccessToken: "", RefreshToken: ""}},
+		},
+		{
+			name:         "Invalid JSON Request Body",
+			requestBody:  "{", // Invalid JSON
+			expectedCode: http.StatusBadRequest,
+			expectedResp: param.LoginResponse{},
+		},
+		{
+			name:         "Missing Username",
+			requestBody:  map[string]string{"password": "test_password"},
+			expectedCode: http.StatusBadRequest,
+			expectedResp: param.LoginResponse{},
+		},
+		{
+			name:         "AuthService Login Error",
+			requestBody:  map[string]string{"username": "test_user", "password": "test_password"},
+			expectedCode: http.StatusBadRequest,
+			expectedResp: param.LoginResponse{},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+
+			// define mock auth service
+			mockAuthSvc := new(mockAuthService)
+
+			// Define expected behavior for AuthService.Login
+			mockAuthSvc.On("Login", mock.Anything, mock.AnythingOfType("param.LoginRequest")).Return(c.expectedResp, nil)
+
+			//TODO: complete assertion
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodPost, "/login", nil)
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+
+			handler := delivery.NewAuthHandler(mockAuthSvc)
+			err := handler.Login(c)
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusOK, rec.Code)
+		})
+	}
+}
