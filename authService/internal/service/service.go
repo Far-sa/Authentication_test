@@ -37,7 +37,6 @@ type authService struct {
 	config   ports.Config
 	authRepo ports.AuthRepository
 	event    ports.EventPublisher
-	// event    ports.EventPublisher
 }
 
 // User represents the user data received from the message
