@@ -70,7 +70,7 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 			return param.LoginResponse{}, errors.New("invalid data received from queue")
 		}
 
-		valid, err := comparePassword(user.Password, req.Password)
+		valid, err := ComparePassword(user.Password, req.Password)
 		if err != nil {
 			return param.LoginResponse{}, fmt.Errorf("failed to compare password: %w", err)
 		}
@@ -118,7 +118,7 @@ func (s authService) consumeMessages() (<-chan interface{}, error) {
 			fmt.Println("Raw data:", string(d.Body))
 
 			var user User
-			user, err := unmarshalUser(d.Body) // Call unmarshalUser function
+			user, err := UnmarshalUser(d.Body) // Call unmarshalUser function
 			if err != nil {
 				log.Println("Error unmarshalling data:", err)
 				// Handle the error accordingly
@@ -136,13 +136,13 @@ func (s authService) consumeMessages() (<-chan interface{}, error) {
 
 }
 
-func unmarshalUser(data []byte) (User, error) {
+func UnmarshalUser(data []byte) (User, error) {
 	var user User
 	err := json.Unmarshal(data, &user)
 	return user, err
 }
 
-func comparePassword(hashedPassword, reqPassword string) (bool, error) {
+func ComparePassword(hashedPassword, reqPassword string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(reqPassword))
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {

@@ -70,7 +70,7 @@ func TestLoginServiceLogic(t *testing.T) {
 	mockAuthSvc.On("RefreshAccessToken", expectedUser).Return("valid_refresh_token", nil)
 	mockAuthSvc.On("StoreToken", expectedUser.ID, "valid_access_token", mock.Anything).Return(nil)
 
-	mockcfg := &mockConfig{}
+	mockCfg := &mockConfig{}
 	mockRepo := &mockRepo{}
 	mockEvent := &mockEventPublisher{}
 
@@ -80,7 +80,7 @@ func TestLoginServiceLogic(t *testing.T) {
 	loginReq := param.LoginRequest{Email: expectedUser.Email, Password: expectedPassword}
 
 	// Act
-	s := service.NewAuthService(mockcfg, mockRepo, mockEvent)
+	s := service.NewAuthService(mockCfg, mockRepo, mockEvent)
 	response, err := s.Login(ctxWithCan, loginReq)
 
 	// Assert
