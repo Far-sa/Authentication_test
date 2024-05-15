@@ -18,7 +18,7 @@ func (m *MockConfigAdapter) GetDatabaseConfig() ports.DatabaseConfig {
 	return args.Get(0).(ports.DatabaseConfig)
 }
 
-func TestGetConnectionPoolSuccess(t *testing.T) {
+func TestGetConnectionPool(t *testing.T) {
 	// Create a mock configuration adapter
 	mockAdapter := new(MockConfigAdapter)
 
@@ -57,6 +57,56 @@ func (m *MockConfigAdapter) GetConstants() ports.Constants {
 
 func (m *MockConfigAdapter) GetHTTPConfig() ports.HTTPConfig {
 	return m.GetHTTPConfig()
+}
+
+func TestGetConnectionPoolTableDriven(t *testing.T) {
+	type testCase struct {
+		name             string
+		expectedDbConfig ports.DatabaseConfig
+		expectedError    string
+	}
+
+	cases := []testCase{
+		{name: "successful connection",
+			expectedDbConfig: ports.DatabaseConfig{
+				User:     "test_user", // Replace with your test credentials
+				Password: "test_password",
+				Host:     "localhost",
+				Port:     5432,
+				DBName:   "test_database",
+			},
+			expectedError: "",
+		},
+		{
+			name: "Error: Invalid user in configuration",
+			expectedDbConfig: ports.DatabaseConfig{ // Invalid user
+				User:     "invalid_user",
+				Password: "test_password",
+				Host:     "localhost",
+				Port:     5432,
+				DBName:   "test_database",
+			},
+			expectedError: "pq: password authentication failed for user \"invalid_user\"", // Expected error message
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+
+			mockAdapter := new(MockConfigAdapter)
+			mockAdapter.On("GetDatabaseConfig").Return(c.expectedDbConfig)
+			pool, err := db.GetConnectionPool(mockAdapter)
+
+			// Assertions based on the test case
+			if c.expectedError != "" {
+				require.EqualError(t, err, c.expectedError)
+			} else {
+				require.NoError(t, err)
+				defer pool.Close() // Close the connection pool after the test
+			}
+
+		})
+	}
 }
 
 //!!!!
