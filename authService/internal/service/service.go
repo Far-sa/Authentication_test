@@ -90,7 +90,7 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 			return param.LoginResponse{}, fmt.Errorf("failed to create refresh token: %w", err)
 		}
 
-		if err := s.authRepo.StoreToken(int(user.ID), accessToken, time.Now().Add(72*time.Hour)); err != nil {
+		if err := s.authRepo.StoreToken(user.ID, accessToken, time.Now().Add(72*time.Hour)); err != nil {
 			fmt.Println("Error storing token:", err)
 		}
 

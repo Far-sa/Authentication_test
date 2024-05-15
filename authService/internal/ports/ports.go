@@ -13,8 +13,8 @@ type AuthRepository interface {
 	// AddRevokedToken(tokenID string) error
 	// IsTokenRevoked(tokenID string) bool
 
-	StoreToken(userID int, token string, expiration time.Time) error
-	RetrieveToken(userID int) (*entity.Token, error)
+	StoreToken(userID uint, token string, expiration time.Time) error
+	RetrieveToken(userID uint) (*entity.Token, error)
 }
 
 type AuthService interface {

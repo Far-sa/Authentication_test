@@ -3,8 +3,8 @@ package entity
 import "time"
 
 type Token struct {
-	ID         string
-	UserID     string
+	ID         uint
+	UserID     uint
 	Expiration time.Time
 	TokenValue string
 }

@@ -17,7 +17,7 @@ func NewAuthRepository(dbPool *sql.DB) postgresDB {
 	return postgresDB{db: dbPool}
 }
 
-func (db postgresDB) StoreToken(userID int, token string, expiration time.Time) error {
+func (db postgresDB) StoreToken(userID uint, token string, expiration time.Time) error {
 	result, err := db.db.Exec("INSERT INTO tokens (user_id, token, expiration) VALUES ($1, $2, $3)",
 		userID, token, expiration)
 	fmt.Println("Actual SQL:", result)
@@ -28,7 +28,7 @@ func (db postgresDB) StoreToken(userID int, token string, expiration time.Time) 
 	return nil
 }
 
-func (db postgresDB) RetrieveToken(userID int) (*entity.Token, error) {
+func (db postgresDB) RetrieveToken(userID uint) (*entity.Token, error) {
 	var t entity.Token
 	row := db.db.QueryRow("SELECT id, user_id, token, expiration FROM tokens WHERE user_id = $1", userID)
 	err := row.Scan(&t.ID, &t.UserID, &t.TokenValue, &t.Expiration)
