@@ -3,6 +3,7 @@ package postgres
 import (
 	"auth-svc/internal/entity"
 	"database/sql"
+	"fmt"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -17,8 +18,10 @@ func NewAuthRepository(dbPool *sql.DB) postgresDB {
 }
 
 func (db postgresDB) StoreToken(userID int, token string, expiration time.Time) error {
-	_, err := db.db.Exec("INSERT INTO tokens (user_id, token, expiration) VALUES ($1, $2, $3)",
+	result, err := db.db.Exec("INSERT INTO tokens (user_id, token, expiration) VALUES ($1, $2, $3)",
 		userID, token, expiration)
+	fmt.Println("Actual SQL:", result)
+
 	if err != nil {
 		return err
 	}
