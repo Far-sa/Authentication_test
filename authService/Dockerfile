@@ -13,6 +13,7 @@ RUN go build -o /app/auth-svc
 # Runtime Steps
 FROM alpine:latest
 
+WORKDIR /app
 
 COPY --from=builder /app/auth-svc .
 
@@ -22,6 +23,15 @@ COPY database/migrations ./
 
 EXPOSE 5001
 
-# ENTRYPOINT ["./scripts/docker-entrypoint.sh"]
+# Set the entrypoint to the script
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Custom initialization steps (database creation, etc.)
+# COPY scripts/init.sh /usr/local/bin/init.sh
+# RUN chmod +x /usr/local/bin/init.sh
+# RUN /usr/local/bin/init.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
 
 CMD ["./auth-svc"]

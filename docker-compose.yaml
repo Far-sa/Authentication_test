@@ -56,8 +56,9 @@ services:
     restart: always
     environment:
       #POSTGRES_DB: authDB
-      #POSTGRES_USER: root
+      POSTGRES_USER: postgres 
       POSTGRES_PASSWORD: password
+      #POSTGRES_HOST: postgres
     #command: ["psql", "-U", "postgres", "-h", "postgres", "-c", "CREATE DATABASE authDB"]
 
     ports:
