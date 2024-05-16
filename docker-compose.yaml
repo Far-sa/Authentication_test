@@ -58,6 +58,8 @@ services:
       #POSTGRES_DB: authDB
       #POSTGRES_USER: root
       POSTGRES_PASSWORD: password
+    #command: ["psql", "-U", "postgres", "-h", "postgres", "-c", "CREATE DATABASE authDB"]
+
     ports:
       - "5432:5432"
     volumes:
@@ -76,7 +78,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: mysqlUser
-      MYSQL_USER: root
+      #MYSQL_USER: root
       MYSQL_PASSWORD: password
     volumes:
       - ./data/mysql-data:/var/lib/mysql

@@ -22,4 +22,6 @@ COPY database/migrations ./
 
 EXPOSE 5001
 
+# ENTRYPOINT ["./scripts/docker-entrypoint.sh"]
+
 CMD ["./auth-svc"]
