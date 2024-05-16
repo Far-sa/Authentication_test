@@ -25,7 +25,7 @@ func New(config ports.Config, userSvc ports.Service, logger ports.Logger,
 }
 
 // TODO: implement serve function
-func (s server) Serve() {
+func (s server) Serve() error {
 
 	// s.Router.Use(middleware.RequestID())
 	// s.Router.Use(middleware.Recover())
@@ -40,7 +40,7 @@ func (s server) Serve() {
 	if err := s.Router.Start(":5000"); err != nil {
 		s.logger.Error("Router error", zap.Error(err))
 	}
-
+	return nil
 }
 
 // RegisterUserEndpoint handles user registration

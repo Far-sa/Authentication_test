@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"user-svc/adapters/config"
 	"user-svc/adapters/delivery/httpServer"
 	"user-svc/adapters/logger"
@@ -58,6 +61,40 @@ func main() {
 	//* http handler
 	userHandler := httpServer.New(configAdapter, userService, zapLogger)
 
-	userHandler.Serve()
+	// userHandler.Serve()
 
+	//! Shutdown gracefully
+	serverStopped := make(chan error, 1)
+	go func() {
+		err := userHandler.Serve()
+		if err != nil {
+			log.Println("Server exited with error:", err)
+		}
+		serverStopped <- err
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case <-quit:
+		log.Println("Received interrupt signal, initiating graceful shutdown...")
+	case err := <-serverStopped:
+		if err != nil {
+			log.Printf("Server exited with error: %v\n", err)
+		}
+		log.Println("Server stopped, initiating graceful shutdown...")
+	}
+
+	// Perform cleanup tasks here before exiting
+	log.Println("Shutting down server...")
+
+	// Close resources with error handling
+	if err := dbPool.Close(); err != nil {
+		log.Println("Error closing database pool:", err)
+	}
+	if err := publisher.Close(); err != nil {
+		log.Println("Error closing event publisher:", err)
+	}
+
+	log.Println("Server gracefully stopped")
 }

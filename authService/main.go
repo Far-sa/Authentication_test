@@ -10,7 +10,10 @@ import (
 	"auth-svc/internal/service"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/viper"
@@ -65,6 +68,43 @@ func main() {
 	// e.GET("/revoke-token", authHandler.RevokeToken)
 
 	// 	// Start server
-	e.Logger.Fatal(e.Start(":5001"))
+	// e.Logger.Fatal(e.Start(":5001"))
+
+	//! Shutdown Gracefully
+	// Start server in a separate goroutine
+	serverStopped := make(chan error, 1)
+	go func() {
+		err := e.Start(":5001")
+		if err != nil {
+			e.Logger.Fatal(err) // Handle server startup error critically
+		}
+		serverStopped <- err // Signal server shutdown (if any error)
+	}()
+
+	// Wait for interrupt signal or server error to gracefully shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case <-quit:
+		log.Println("Received interrupt signal, initiating graceful shutdown...")
+	case err := <-serverStopped:
+		if err != nil {
+			log.Printf("Server exited with error: %v\n", err)
+		}
+		log.Println("Server stopped, initiating graceful shutdown...")
+	}
+
+	// Perform cleanup tasks here before exiting
+	log.Println("Shutting down server...")
+
+	// Close resources with error handling
+	if err := dbPool.Close(); err != nil {
+		log.Println("Error closing database pool:", err)
+	}
+	if err := eventPublisher.Close(); err != nil {
+		log.Println("Error closing event publisher:", err)
+	}
+
+	log.Println("Server gracefully stopped")
 
 }
