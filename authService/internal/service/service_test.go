@@ -52,7 +52,7 @@ func (m *mockAuthService) RefreshAccessToken(user service.User) (string, error) 
 // StoreToken mocks the StoreToken method
 func (m *mockAuthService) StoreToken(userID uint, accessToken string, expiry time.Time) error {
 	args := m.Called(userID, accessToken, expiry)
-	return args.Error(1)
+	return args.Error(0)
 }
 
 func TestLoginServiceLogic(t *testing.T) {
