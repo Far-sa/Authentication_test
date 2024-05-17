@@ -58,16 +58,12 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: postgres
       #POSTGRES_HOST: postgres
-    #command: ["psql", "-U", "postgres", "-q", "-t", "-c", "SELECT 1 IF NOT EXISTS (SELECT datname FROM pg_catalog.pg_database WHERE datname = 'authDB');"]
-    #command: ["bash", "-c", "pg_isready -U postgres && psql -U postgres -c 'CREATE DATABASE IF NOT EXISTS authDB;'"]
-    #command: ["psql", "-U", "postgres", "-h", "postgres", "-c", "CREATE DATABASE authDB"]
 
     ports:
       - "5432:5432"
     volumes:
       - ./data/pgdata:/var/lib/postgresql/data
-      - ./authService/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
-    command: ["postgres", "-c", "log_statement=all"]
+      # - ./authService/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
 
     networks:
       - auth-network

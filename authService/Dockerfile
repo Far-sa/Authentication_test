@@ -13,15 +13,13 @@ RUN go build -o /app/auth-svc
 # Runtime Steps
 FROM alpine:latest
 
-WORKDIR /app
+# WORKDIR /app
 
 COPY --from=builder /app/auth-svc .
 
 # Explicitly copy the configuration file into the container
 COPY config.yaml ./
 COPY database/migrations ./
-
-# COPY database/init.sql /docker-entrypoint-initdb.d/init_database.sql
 
 # Custom initialization steps (database creation, etc.)
 # COPY scripts/init-db.sh /docker-entrypoint-initdb.d/init-db.sh

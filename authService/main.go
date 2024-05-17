@@ -44,7 +44,7 @@ func main() {
 
 	authRepo := postgres.NewAuthRepository(dbPool)
 
-	mgr := migrator.NewMigrator(dbPool, "database/migrations")
+	mgr, _ := migrator.NewMigrator(dbPool, "database/migrations")
 	mgr.MigrateUp()
 
 	log.Println("Migrations completed successfully!")
