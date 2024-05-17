@@ -5,7 +5,6 @@ import (
 	"auth-svc/adapters/delivery"
 	"auth-svc/adapters/messaging"
 	"auth-svc/adapters/repository/db"
-	"auth-svc/adapters/repository/migrator"
 	"auth-svc/adapters/repository/postgres"
 	"auth-svc/internal/service"
 	"fmt"
@@ -44,10 +43,12 @@ func main() {
 
 	authRepo := postgres.NewAuthRepository(dbPool)
 
-	mgr, _ := migrator.NewMigrator(dbPool, "database/migrations")
-	mgr.MigrateUp()
+	// mgr := migrator.NewMigrator(dbPool, "./database/migrations")
+	// if err := mgr.MigrateUp(); err != nil {
+	// 	log.Fatalf("Failed to migrate database: %v", err)
+	// }
 
-	log.Println("Migrations completed successfully!")
+	// log.Println("Migrations completed successfully!")
 
 	//connectionString := "amqp://guest:guest@localhost:5672/"
 	eventPublisher, err := messaging.NewRabbitMQClient(configAdapter)

@@ -11,7 +11,6 @@ import (
 	"user-svc/adapters/logger"
 	"user-svc/adapters/messaging"
 	"user-svc/adapters/repository/db"
-	"user-svc/adapters/repository/migrator"
 	"user-svc/adapters/repository/mysql"
 	userService "user-svc/internal/service"
 )
@@ -40,10 +39,10 @@ func main() {
 	//* Initialize repositories and services
 	userRepository := mysql.New(dbPool, zapLogger)
 
-	mgr := migrator.New(dbPool, "infrastructure/db/migrations")
-	mgr.MigrateUp()
+	// mgr := migrator.New(dbPool, "infrastructure/db/migrations")
+	// mgr.MigrateUp()
 
-	log.Println("Migrations completed successfully!")
+	// log.Println("Migrations completed successfully!")
 
 	publisher, err := messaging.NewRabbitClient(configAdapter)
 	if err != nil {

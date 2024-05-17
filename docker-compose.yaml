@@ -56,14 +56,14 @@ services:
     environment:
       POSTGRES_USER: postgres 
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: postgres
+      #POSTGRES_DB: postgres
       #POSTGRES_HOST: postgres
 
     ports:
       - "5432:5432"
     volumes:
       - ./data/pgdata:/var/lib/postgresql/data
-      # - ./authService/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - ./authService/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
 
     networks:
       - auth-network
@@ -81,6 +81,7 @@ services:
       MYSQL_PASSWORD: password
     volumes:
       - ./data/mysql-data:/var/lib/mysql
+      - ./userService/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     networks:
       - user-network
 
@@ -99,7 +100,7 @@ services:
       ###
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_DB: authdb
+      POSTGRES_DB: authDB
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
     # volumes:
