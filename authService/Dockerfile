@@ -21,17 +21,18 @@ COPY --from=builder /app/auth-svc .
 COPY config.yaml ./
 COPY database/migrations ./
 
-EXPOSE 5001
-
-# Set the entrypoint to the script
-COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# COPY database/init.sql /docker-entrypoint-initdb.d/init_database.sql
 
 # Custom initialization steps (database creation, etc.)
-# COPY scripts/init.sh /usr/local/bin/init.sh
-# RUN chmod +x /usr/local/bin/init.sh
-# RUN /usr/local/bin/init.sh
+# COPY scripts/init-db.sh /docker-entrypoint-initdb.d/init-db.sh
+# RUN chmod +x /docker-entrypoint-initdb.d/init-db.sh
 
-ENTRYPOINT ["docker-entrypoint.sh"]
+EXPOSE 5001
+
+# Install required packages (including make) and run make command
+# RUN apk --no-cache add make \
+#     && make init-db
+
+# ENTRYPOINT ["/docker-entrypoint-initdb.d/init-db.sh"]
 
 CMD ["./auth-svc"]
