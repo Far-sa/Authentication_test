@@ -1,28 +1,36 @@
-
 services:
-  # traefik:
-  #   image: traefik:v2.5
-  #   container_name: reverse-proxy
-  #   command:
-  #     - "--api.insecure=true"
-  #     - "--providers.docker=true"
-  #     - "--providers.docker.exposedbydefault=false"
-  #     - "--entrypoints.web.address=:80"
-  #     #- "--configfile=/etc/traefik/traefik_conf.yaml"  # Specify the custom config file path
+  traefik:
+    image: traefik:v2.5
+    container_name: reverse-proxy
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--configfile=/etc/traefik/traefik_conf.yaml"  # Specify the custom config file path
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "8090:80"
+      - "443:443"
+      - "8080:8080"  # Expose Traefik dashboard
+    networks:
+      - traefik-network
+      - auth-network
+      - user-network
+      - monitoring
+      - rabbitmq-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml
 
-  #   ports:
-  #     - "8090:80"
-  #     - "8080:8080"  # Expose Traefik dashboard
-  #   networks:
-  #     - traefik-network
-  #     - userService-network
-  #     - authService-network
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #     - ./traefik:/etc/traefik/  # Mount custom config file
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.traefik.rule=Host(`localhost`)"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik`)"
 
   rabbitmq:
     image: rabbitmq:3.9-management
@@ -43,6 +51,10 @@ services:
     volumes:
       - ./data/rabbitmq-data:/var/lib/rabbitmq
     restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq`)" # rabbitmq.example.com
+      - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
     networks:
       - rabbitmq-network
       # - auth-network
@@ -54,7 +66,7 @@ services:
     hostname: postgres
     restart: always
     environment:
-      POSTGRES_USER: postgres 
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       #POSTGRES_DB: postgres
       #POSTGRES_HOST: postgres
@@ -105,7 +117,6 @@ services:
   #   networks:
   #     - microservices-network
 
-
   authservice:
     build:
       context: ./authService
@@ -126,7 +137,6 @@ services:
       POSTGRES_PASSWORD: password
     # volumes:
     #   - ./authService/scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
-
     depends_on:
       - rabbitmq
       - postgres
@@ -135,12 +145,12 @@ services:
     restart: always
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.authService.rule=Host(`localhost`)" # auth.example.com
+      - "traefik.http.routers.authService.rule=Host(`authservice`)" # auth.example.com
+      - "traefik.http.services.authService.loadbalancer.server.port=8001"
     networks:
       - auth-network
       - rabbitmq-network
       - monitoring
-
 
   userservice:
     build:
@@ -172,10 +182,10 @@ services:
       - user-network
       - rabbitmq-network
       - monitoring
-
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.userService.rule=Host(`localhost`)" # user.example.com
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.userService.rule=Host(`userservice`)" # user.example.com
+      - "traefik.http.services.userService.loadbalancer.server.port=8000"
 
   prometheus:
     image: prom/prometheus
@@ -184,10 +194,10 @@ services:
       - ./data/metrics/prometheus:/etc/prometheus/
       - ./prometheus-grafana/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
     ports:
       - 9090:9090
     links:
@@ -195,9 +205,12 @@ services:
       - alertmanager:alertmanager
     depends_on:
       - cadvisor
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus`)" # prometheus.example.com
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
     networks:
       - monitoring
-
 
   node-exporter:
     image: prom/node-exporter
@@ -206,10 +219,10 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
       - --collector.filesystem.ignored-mount-points
-      - '^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)'
+      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
     ports:
       - 9100:9100
     restart: always
@@ -217,7 +230,6 @@ services:
       mode: global
     networks:
       - monitoring
-
 
   alertmanager:
     image: prom/alertmanager
@@ -228,11 +240,14 @@ services:
       - ./data/metrics/alertmanager/:/etc/alertmanager/
       - ./prometheus-grafana/alertmanager/config.yml:/etc/alertmanager/config.yml
     command:
-      - '--config.file=/etc/alertmanager/config.yml'
-      - '--storage.path=/alertmanager'
+      - "--config.file=/etc/alertmanager/config.yml"
+      - "--storage.path=/alertmanager"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alertmanager.rule=Host(`alertmanager`)" # alertmanager.example.com
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
     networks:
       - monitoring
-
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor
@@ -246,16 +261,19 @@ services:
     restart: always
     deploy:
       mode: global
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor`)" # cadvisor.example.com
+      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
     networks:
       - monitoring
 
-
   grafana:
     image: grafana/grafana
-    user: '472'
+    user: "472"
     restart: always
     environment:
-      GF_INSTALL_PLUGINS: 'grafana-clock-panel,grafana-simple-json-datasource'
+      GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource"
     volumes:
       #- grafana_data:/var/lib/grafana
       - ./data/metrics/grafana/provisioning/:/etc/grafana/provisioning/
@@ -265,12 +283,17 @@ services:
       - 3000:3000
     depends_on:
       - prometheus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana`)" # grafana.example.com
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     networks:
       - monitoring
 
-
-
 networks:
+  traefik-network:
+    external: true
+    driver: bridge
   auth-network:
     external: true
     driver: bridge

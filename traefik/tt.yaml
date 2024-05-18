@@ -1,0 +1,93 @@
+api:
+  dashboard: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+
+certificatesResolvers:
+  myresolver:
+    acme:
+      email: your-email@example.com
+      storage: "/letsencrypt/acme.json"
+      httpChallenge:
+        entryPoint: web
+
+middlewares:
+  # Define an IP whitelist middleware
+  ipwhitelist:
+    # Replace with allowed IP addresses
+    srcRange: ["10.0.0.0/16", "192.168.1.0/24"]
+
+
+router:
+  # Define routers for your microservices
+  rules:
+    - service: auth
+      path: /login  # Match only the "/login" path
+      match: Host(`authservice`)
+      tls: { certResolver: myresolver }
+
+    - service: user
+      path: /register  # Match only "/register" path
+      match: Host(`userservice`)
+      tls: { certResolver: myresolver }
+
+    - service: rabbitmq
+      middlewares:
+        - ipwhitelist  # Only allow access from whitelisted IP
+      match: Host(`rabbitmq`)
+      tls: { certResolver: myresolver }
+
+    - service: prometheus
+      match: Host(`prometheus`)
+      tls: { certResolver: myresolver }
+
+    - service: grafana
+      match: Host(`grafana`)
+      tls: { certResolver: myresolver }
+
+    - service: cadvisor
+      match: Host(`cadvisor`)
+      tls: { certResolver: myresolver }
+      
+    - service: alertmanager
+      match: Host(`alertmanager`)
+      tls: { certResolver: myresolver }
+
+services:
+  auth:
+    loadBalancer:
+      servers:
+        - address: "http://auth-service:8080"
+  user:
+    loadBalancer:
+      servers:
+        - address: "http://user-service:8081"
+  rabbitmq:
+    loadBalancer:
+      servers:
+        - address: "http://rabbitmq:15672"
+  prometheus:
+    loadBalancer:
+      servers:
+        - address: "http://prometheus:9090"
+  grafana:
+    loadBalancer:
+      servers:
+        - address: "http://grafana:3000"
+  cadvisor:
+    loadBalancer:
+      servers:
+        - address: "http://cadvisor:8080"
+  alertmanager:
+    loadBalancer:
+      servers:
+        - address: "http://alertmanager:9093"
