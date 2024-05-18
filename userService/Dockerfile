@@ -1,5 +1,5 @@
 # Builder Stage
-FROM golang:1.20-alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
@@ -29,12 +29,6 @@ COPY infrastructure/db/migrations ./
 
 # Expose port
 EXPOSE 5000
-
-# Environment Variables
-# ENV RABBITMQ_HOST rabbitmq
-# ENV RABBITMQ_USER guest
-# ENV RABBITMQ_PASSWORD guest
-# ENV RABBITMQ_PORT 5672
 
 # Command to run the application
 CMD ["./user-svc"]

@@ -1,16 +1,58 @@
 global:
-  scrape_interval:     15s
-  evaluation_interval: 15s
-
-rule_files:
-  # - "first.rules"
-  # - "second.rules"
+  scrape_interval: 15s
 
 scrape_configs:
-  - job_name: prometheus
+  - job_name: 'prometheus'
     static_configs:
-      - targets: ['localhost:9090']
-  - job_name: app
+      - targets: ['prometheus:9090']
+
+  - job_name: 'user_service'
+    static_configs:
+      - targets: ['userService:8000']
+
+  - job_name: 'auth_service'
+    static_configs:
+      - targets: ['authService:8001']
+  
+  # - job_name: 'postgres_db1'
+  #   static_configs:
+  #     - targets: ['postgres_exporter_db1:9187']
+
+  # - job_name: 'mysql_db2'
+  #   static_configs:
+  #     - targets: ['mysql_exporter_db2:9104']
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15672']
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: 'node_exporter'
+        
+    # Override the global default and scrape targets from this job every 5 seconds.
     scrape_interval: 5s
+
     static_configs:
-      - targets: ['host.docker.internal:10088']
+      - targets: ['node_exporter:9100']
+
+
+
+# global:
+#   scrape_interval:     15s
+#   evaluation_interval: 15s
+
+# rule_files:
+#   # - "first.rules"
+#   # - "second.rules"
+
+# scrape_configs:
+#   - job_name: prometheus
+#     static_configs:
+#       - targets: ['localhost:9090']
+#   - job_name: app
+#     scrape_interval: 5s
+#     static_configs:
+#       - targets: ['host.docker.internal:10088']

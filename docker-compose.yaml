@@ -58,15 +58,24 @@ services:
       POSTGRES_PASSWORD: password
       #POSTGRES_DB: postgres
       #POSTGRES_HOST: postgres
-
     ports:
       - "5432:5432"
     volumes:
       - ./data/pgdata:/var/lib/postgresql/data
       - ./authService/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
-
     networks:
       - auth-network
+
+    # Postgres Exporter for DB1
+  # postgres_exporter_db1:
+  #   image: wrouesnel/postgres_exporter
+  #   container_name: postgres_exporter_db1
+  #   environment:
+  #     DATA_SOURCE_NAME: "postgresql://youruser:yourpassword@db1:5432/yourdb1?sslmode=disable"
+  #   ports:
+  #     - "9187:9187"
+  #   networks:
+  #     - microservices-network
 
   mysql:
     image: mysql:8.0
@@ -84,6 +93,18 @@ services:
       - ./userService/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     networks:
       - user-network
+
+    # MySQL Exporter for DB2
+  # mysql_exporter_db2:
+  #   image: prom/mysqld-exporter
+  #   container_name: mysql_exporter_db2
+  #   environment:
+  #     DATA_SOURCE_NAME: "youruser:yourpassword@tcp(db2:3306)/yourdb2"
+  #   ports:
+  #     - "9104:9104"
+  #   networks:
+  #     - microservices-network
+
 
   authservice:
     build:
@@ -161,7 +182,7 @@ services:
     restart: always
     volumes:
       - ./data/metrics/prometheus:/etc/prometheus/
-      - prometheus_data:/prometheus
+      - ./prometheus-grafana/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -205,6 +226,7 @@ services:
       - 9093:9093
     volumes:
       - ./data/metrics/alertmanager/:/etc/alertmanager/
+      - ./prometheus-grafana/alertmanager/config.yml:/etc/alertmanager/config.yml
     command:
       - '--config.file=/etc/alertmanager/config.yml'
       - '--storage.path=/alertmanager'
@@ -235,7 +257,7 @@ services:
     environment:
       GF_INSTALL_PLUGINS: 'grafana-clock-panel,grafana-simple-json-datasource'
     volumes:
-      - grafana_data:/var/lib/grafana
+      #- grafana_data:/var/lib/grafana
       - ./data/metrics/grafana/provisioning/:/etc/grafana/provisioning/
     env_file:
       - ./prometheus-grafana/grafana/config.monitoring
