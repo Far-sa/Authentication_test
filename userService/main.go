@@ -10,6 +10,7 @@ import (
 	"user-svc/adapters/delivery/httpServer"
 	"user-svc/adapters/logger"
 	"user-svc/adapters/messaging"
+	"user-svc/adapters/metrics"
 	"user-svc/adapters/repository/db"
 	"user-svc/adapters/repository/mysql"
 	userService "user-svc/internal/service"
@@ -30,14 +31,14 @@ func main() {
 	defer dbPool.Close() // Close the pool when done (consider connection pool management)
 
 	//* Initialize Prometheus metrics adapter
-	//prometheusAdapter := metrics.NewPrometheus()
+	prometheusAdapter := metrics.NewPrometheus()
 	zapLogger, err := logger.NewZapLogger(configAdapter)
 	if err != nil {
 		log.Fatalf("failed to init logger-config: %v", err)
 	}
 
 	//* Initialize repositories and services
-	userRepository := mysql.New(dbPool, zapLogger)
+	userRepository := mysql.New(dbPool, zapLogger, prometheusAdapter)
 
 	// mgr := migrator.New(dbPool, "infrastructure/db/migrations")
 	// mgr.MigrateUp()
@@ -58,7 +59,7 @@ func main() {
 	// grpcHandler.Start()
 
 	//* http handler
-	userHandler := httpServer.New(configAdapter, userService, zapLogger)
+	userHandler := httpServer.New(configAdapter, userService, zapLogger, prometheusAdapter)
 
 	// userHandler.Serve()
 

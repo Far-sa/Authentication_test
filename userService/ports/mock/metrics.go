@@ -2,6 +2,7 @@ package mocks
 
 import (
 	//"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -50,35 +51,35 @@ func NewMockDatabaseMetrics() *MockDatabaseMetrics {
 	return &MockDatabaseMetrics{}
 }
 
-// func (m *MockDatabaseMetrics) RegisterDatabaseDurationHistogram() *prometheus.HistogramVec {
-// 	args := m.Called()
-// 	return args.Get(0).(*prometheus.HistogramVec)
-// }
+func (m *MockDatabaseMetrics) RegisterDatabaseDurationHistogram() *prometheus.HistogramVec {
+	args := m.Called()
+	return args.Get(0).(*prometheus.HistogramVec)
+}
 
-// func (m *MockDatabaseMetrics) RegisterDatabaseErrorCounter() *prometheus.CounterVec {
-// 	args := m.Called()
-// 	return args.Get(0).(*prometheus.CounterVec)
-// }
+func (m *MockDatabaseMetrics) RegisterDatabaseErrorCounter() *prometheus.CounterVec {
+	args := m.Called()
+	return args.Get(0).(*prometheus.CounterVec)
+}
 
 // MockDatabaseMetricsAdapter is a mock implementation of DatabaseMetricsAdapter for testing
-// type MockDatabaseMetricsAdapter struct {
-// 	RegisterDatabaseDurationHistogramFn func() *prometheus.HistogramVec
-// 	RegisterDatabaseErrorCounterFn      func() *prometheus.CounterVec
-// }
+type MockDatabaseMetricsAdapter struct {
+	RegisterDatabaseDurationHistogramFn func() *prometheus.HistogramVec
+	RegisterDatabaseErrorCounterFn      func() *prometheus.CounterVec
+}
 
-// func (m *MockDatabaseMetricsAdapter) RegisterDatabaseDurationHistogram() *prometheus.HistogramVec {
-// 	if m.RegisterDatabaseDurationHistogramFn != nil {
-// 		return m.RegisterDatabaseDurationHistogramFn()
-// 	}
-// 	return nil
-// }
+func (m *MockDatabaseMetricsAdapter) RegisterDatabaseDurationHistogram() *prometheus.HistogramVec {
+	if m.RegisterDatabaseDurationHistogramFn != nil {
+		return m.RegisterDatabaseDurationHistogramFn()
+	}
+	return nil
+}
 
-// func (m *MockDatabaseMetricsAdapter) RegisterDatabaseErrorCounter() *prometheus.CounterVec {
-// 	if m.RegisterDatabaseErrorCounterFn != nil {
-// 		return m.RegisterDatabaseErrorCounterFn()
-// 	}
-// 	return nil
-// }
+func (m *MockDatabaseMetricsAdapter) RegisterDatabaseErrorCounter() *prometheus.CounterVec {
+	if m.RegisterDatabaseErrorCounterFn != nil {
+		return m.RegisterDatabaseErrorCounterFn()
+	}
+	return nil
+}
 
 // // MockHTTPMetricsAdapter is a mock implementation of HTTPMetricsAdapter for testing
 // type MockHTTPMetricsAdapter struct {

@@ -46,11 +46,12 @@ func TestMysqlDB_CreateUser_Success(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := new(mocks.MockDB)
+			mockMetrics := mocks.NewMockDatabaseMetrics()
 
 			// TODO: connection
 			// mysqlDB := mysql.MysqlDB{db: mockDB}
 			dbPool, _ := db.GetConnectionPool(mockConfig)
-			mysqlDB := mysql.New(dbPool, mockLogger)
+			mysqlDB := mysql.New(dbPool, mockLogger, mockMetrics)
 
 			user := entity.User{
 				PhoneNumber: tt.expectedUser.PhoneNumber,

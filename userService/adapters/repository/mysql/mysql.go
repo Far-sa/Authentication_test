@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"time"
 	"user-svc/internal/entity"
 	"user-svc/ports"
 
@@ -12,33 +13,13 @@ import (
 )
 
 type MysqlDB struct {
-	//metrics ports.DatabaseMetrics
-	db     *sqlx.DB
-	logger ports.Logger
+	metrics ports.DatabaseMetrics
+	db      *sqlx.DB
+	logger  ports.Logger
 }
 
-func New(dbPool *sqlx.DB, logger ports.Logger) *MysqlDB {
-	// dbConfig := config.GetDatabaseConfig()
-	// //db, err := sqlx.Connect("mysql", "root:password@(localhost:3306)/mysql_app")
-
-	// dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
-	// 	dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
-
-	// db, err := sqlx.Open("mysql", dsn)
-	// if err != nil {
-	// 	logger.Error("Failed to open MySQL database", zap.Error(err))
-	// }
-
-	// err = db.Ping()
-	// if err != nil {
-	// 	log.Fatal("Error pinging database:", err)
-	// }
-
-	// if db == nil {
-	// 	log.Fatal("Database object is nil")
-	// }
-
-	return &MysqlDB{db: dbPool, logger: logger}
+func New(dbPool *sqlx.DB, logger ports.Logger, metrics ports.DatabaseMetrics) *MysqlDB {
+	return &MysqlDB{db: dbPool, logger: logger, metrics: metrics}
 
 }
 
@@ -61,15 +42,15 @@ func (r MysqlDB) CreateUser(ctx context.Context, user entity.User) (entity.User,
 	r.logger.Info("Data inserted successfully", zap.String("query", query))
 
 	//! metrics
-	// start := time.Now()
-	// duration := time.Since(start).Seconds()
-	// dbDurationHistogram := r.metrics.RegisterDatabaseDurationHistogram().WithLabelValues(query)
-	// dbDurationHistogram.Observe(duration)
+	start := time.Now()
+	duration := time.Since(start).Seconds()
+	dbDurationHistogram := r.metrics.RegisterDatabaseDurationHistogram().WithLabelValues(query)
+	dbDurationHistogram.Observe(duration)
 
-	// if err := recover(); err != nil {
-	// 	dbErrorCounter := r.metrics.RegisterDatabaseErrorCounter().WithLabelValues(query)
-	// 	dbErrorCounter.Inc()
-	// }
+	if err := recover(); err != nil {
+		dbErrorCounter := r.metrics.RegisterDatabaseErrorCounter().WithLabelValues(query)
+		dbErrorCounter.Inc()
+	}
 
 	return user, nil
 }

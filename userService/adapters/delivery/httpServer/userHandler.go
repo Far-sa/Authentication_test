@@ -6,20 +6,20 @@ import (
 	"user-svc/ports"
 
 	"github.com/labstack/echo/v4"
-	//"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
 
 type server struct {
 	userSvc ports.Service
 	//  ports.Validator
-	logger ports.Logger
-	//metrics ports.HTTPMetrics
-	config ports.Config
-	Router *echo.Echo
+	logger  ports.Logger
+	metrics ports.HTTPMetrics
+	config  ports.Config
+	Router  *echo.Echo
 }
 
-func New(config ports.Config, userSvc ports.Service, logger ports.Logger,
+func New(config ports.Config, userSvc ports.Service, logger ports.Logger, metrics ports.HTTPMetrics,
 ) server {
 	return server{config: config, userSvc: userSvc, logger: logger, Router: echo.New()}
 }
@@ -33,7 +33,7 @@ func (s server) Serve() error {
 	s.logger.Info("server is running")
 
 	s.Router.POST("/register", s.Register)
-	//s.Router.GET("/metrics", s.handleMetrics)
+	s.Router.GET("/metrics", s.handleMetrics)
 
 	// port := s.config.GetHTTPConfig().Port
 	// address := fmt.Sprintf(":%d", port)
@@ -90,16 +90,13 @@ func (s server) Register(c echo.Context) error {
 	return c.JSON(http.StatusCreated, resp)
 }
 
-// func (s server) handleMetrics(c echo.Context) error {
-// 	// Serve Prometheus metrics using promhttp.Handler()
-// 	promhttp.Handler().ServeHTTP(c.Response().Writer, c.Request())
-// 	return nil
-// }
+func (s server) handleMetrics(c echo.Context) error {
+	// Serve Prometheus metrics using promhttp.Handler()
+	promhttp.Handler().ServeHTTP(c.Response().Writer, c.Request())
+	return nil
+}
 
-// func (s server) Login(e echo.Context) error {
-// 	panic("unimplemented")
-// }
-// func (s server) Profile(e echo.Context) error {
-// 	s.logger.Warn("unimplemented")
-// 	panic("")
-// }
+func (s server) Profile(e echo.Context) error {
+	s.logger.Warn("unimplemented")
+	panic("")
+}
