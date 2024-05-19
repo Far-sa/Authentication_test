@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"auth-svc/internal/ports"
+	"context"
 	"fmt"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -44,6 +45,46 @@ func NewRabbitMQClient(config ports.Config) (*RabbitClient, error) {
 
 func (rc *RabbitClient) Close() error {
 	return rc.ch.Close()
+}
+
+// CreateExchange declares a new exchange on the RabbitMQ server
+func (rc RabbitClient) DeclareExchange(name, kind string) error {
+
+	return rc.ch.ExchangeDeclare(
+		name,  // Name of the exchange
+		kind,  // Type of exchange (e.g., "fanout", "direct", "topic")
+		true,  // Durable (survives server restarts)
+		false, // Delete when unused
+		false, // Exclusive (only this connection can access)
+		false,
+		nil, // Arguments
+	)
+}
+
+func (rc RabbitClient) CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error) {
+	q, err := rc.ch.QueueDeclare(queueName, durable, autodelete, false, false, nil)
+	if err != nil {
+		return amqp.Queue{}, nil
+	}
+	return q, err
+}
+
+func (rc RabbitClient) CreateBinding(name, binding, exchange string) error {
+	return rc.ch.QueueBind(name, binding, exchange, false, nil)
+}
+
+// ! PublishMessage sends a message to a specific exchange with a routing key
+func (rc RabbitClient) Publish(ctx context.Context, exchangeName string, routingKey string, options amqp.Publishing) error {
+
+	return rc.ch.PublishWithContext(
+		ctx,
+		exchangeName, // Name of the exchange
+		routingKey,   // Routing key for message
+		false,        // Mandatory (if true, message is rejected if no queue is bound)
+		false,        // Immediate (if true, delivery happens now, or fails)
+		options,
+	)
+
 }
 
 func (rc *RabbitClient) Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {

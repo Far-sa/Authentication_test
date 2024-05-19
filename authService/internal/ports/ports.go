@@ -30,12 +30,11 @@ type EventPublisher interface {
 	// GetChannel() (*amqp.Channel, error)
 	Close() error
 
-	// DeclareExchange(name, kind string) error
-	// CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error)
-	// CreateBinding(queueName, routingKey, exchangeName string) error
+	DeclareExchange(name, kind string) error
+	CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error)
+	CreateBinding(queueName, routingKey, exchangeName string) error
 	Consume(queueName, consumer string, autoAck bool) (<-chan amqp.Delivery, error)
-	// PublishMessage(exchangeName string, routingKey string, options amqp.Publishing) error
-
+	Publish(ctx context.Context, exchange, routingKey string, options amqp.Publishing) error
 	// PublishUser(userInfo *UserInfo) error
 
 }

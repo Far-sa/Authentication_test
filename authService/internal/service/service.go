@@ -64,11 +64,19 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 	case <-ctx.Done():
 		// Handle timeout or context cancellation
 		return param.LoginResponse{}, errors.New("timed out waiting for user information")
-	case data := <-userChan:
+	case data, ok := <-userChan:
+		if !ok {
+			return param.LoginResponse{}, errors.New("user not found") // No matching user found
+		}
 		user, ok := data.(User) // Cast data to the User struct
 		if !ok {
 			return param.LoginResponse{}, errors.New("invalid data received from queue")
 		}
+		// case data := <-userChan:
+		// 	user, ok := data.(User) // Cast data to the User struct
+		// 	if !ok {
+		// 		return param.LoginResponse{}, errors.New("invalid data received from queue")
+		// 	}
 
 		valid, err := ComparePassword(user.Password, req.Password)
 		if err != nil {
@@ -100,7 +108,6 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 	}
 }
 
-// TODO Bug- (change exchange)
 func (s authService) consumeMessages() (<-chan interface{}, error) {
 
 	msgs, err := s.event.Consume("registration_queue", "auth_consumer", false)

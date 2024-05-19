@@ -46,8 +46,8 @@ middlewares:
 routers:
   # Auth service router
   auth:
-    rule: "Host(`www.example.com`) && PathPrefix(`/login`)"
-    service: auth_service
+    rule: "Host(`authservice`) && PathPrefix(`/login`)"
+    service: auth
     entryPoints:
       - websecure
     tls:
@@ -55,8 +55,8 @@ routers:
 
   # User service router (Public routes)
   user:
-    rule: "Host(`www.example.com`) && PathPrefix(`/user`)"
-    service: user_service
+    rule: "Host(`userservice`) && PathPrefix(`/user`)"
+    service: user
     entryPoints:
       - websecure
     tls:
@@ -73,29 +73,29 @@ routers:
       certResolver: myresolver
 
   # Order service router (Public routes)
-  order:
-    rule: "Host(`www.example.com`) && PathPrefix(`/order`)"
-    service: order_service
-    entryPoints:
-      - websecure
-    tls:
-      certResolver: myresolver
+  # order:
+  #   rule: "Host(`www.example.com`) && PathPrefix(`/order`)"
+  #   service: order_service
+  #   entryPoints:
+  #     - websecure
+  #   tls:
+  #     certResolver: myresolver
 
-  # Payment service router (Requires authentication)
-  payment:
-    rule: "Host(`www.example.com`) && PathPrefix(`/payment`)"
-    service: payment_service
-    middlewares:
-      - redirect-to-login
-    entryPoints:
-      - websecure
-    tls:
-      certResolver: myresolver
+  # # Payment service router (Requires authentication)
+  # payment:
+  #   rule: "Host(`www.example.com`) && PathPrefix(`/payment`)"
+  #   service: payment_service
+  #   middlewares:
+  #     - redirect-to-login
+  #   entryPoints:
+  #     - websecure
+  #   tls:
+  #     certResolver: myresolver
 
   # Internal services
   rabbitmq:
-    rule: "Host(`rabbitmq.internal`)"
-    service: rabbitmq_service
+    rule: "Host(`rabbitmq`)"
+    service: rabbitmq
     middlewares:
       - ipwhitelist
     entryPoints:
@@ -104,7 +104,7 @@ routers:
       certResolver: myresolver
 
   prometheus:
-    rule: "Host(`prometheus.internal`) && PathPrefix(`/metrics`)"
+    rule: "Host(`prometheus`) && PathPrefix(`/metrics`)" # prometheus.internal
     service: prometheus_service
     middlewares:
       - ipwhitelist
@@ -114,8 +114,8 @@ routers:
       certResolver: myresolver
 
   grafana:
-    rule: "Host(`grafana.internal`) && PathPrefix(`/api/prometheus/scrape`)"
-    service: grafana_service
+    rule: "Host(`grafana`) && PathPrefix(`/api/prometheus/scrape`)"
+    service: grafana
     middlewares:
       - ipwhitelist
     entryPoints:
@@ -124,8 +124,8 @@ routers:
       certResolver: myresolver
 
   cadvisor:
-    rule: "Host(`cadvisor.internal`)"
-    service: cadvisor_service
+    rule: "Host(`cadvisor`)"
+    service: cadvisor
     middlewares:
       - ipwhitelist
     entryPoints:
@@ -134,8 +134,8 @@ routers:
       certResolver: myresolver
 
   alertmanager:
-    rule: "Host(`alertmanager.internal`)"
-    service: alertmanager_service
+    rule: "Host(`alertmanager`)" # alertmanager.internal
+    service: alertmanager
     middlewares:
       - ipwhitelist
     entryPoints:
@@ -144,12 +144,12 @@ routers:
       certResolver: myresolver
 
 services:
-  auth_service:
+  auth:
     loadBalancer:
       servers:
         - url: "http://authservice:8001"
 
-  user_service:
+  user:
     loadBalancer:
       servers:
         - url: "http://userservice:8000"
@@ -164,27 +164,27 @@ services:
       servers:
         - url: "http://paymentservice:8003"
 
-  rabbitmq_service:
+  rabbitmq:
     loadBalancer:
       servers:
         - url: "http://rabbitmq:15672"
 
-  prometheus_service:
+  prometheus:
     loadBalancer:
       servers:
         - url: "http://prometheus:9090"
 
-  grafana_service:
+  grafana:
     loadBalancer:
       servers:
         - url: "http://grafana:3000"
 
-  cadvisor_service:
+  cadvisor:
     loadBalancer:
       servers:
         - url: "http://cadvisor:8080"
 
-  alertmanager_service:
+  alertmanager:
     loadBalancer:
       servers:
         - url: "http://alertmanager:9093"

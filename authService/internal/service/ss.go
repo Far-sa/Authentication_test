@@ -1,5 +1,18 @@
 package service
 
+import (
+	"auth-svc/internal/param"
+	"auth-svc/internal/ports"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+
+	"github.com/google/uuid"
+	amqp "github.com/rabbitmq/amqp091-go"
+)
+
 // import (
 // 	"auth-svc/internal/param"
 // 	"auth-svc/internal/ports"
@@ -27,24 +40,124 @@ package service
 // 	RefreshTokenExpirationDuration = time.Hour * 24 * 7
 // )
 
-// type authService struct {
-// 	config   ports.Config
-// 	authRepo ports.AuthRepository
-// 	event    ports.EventPublisher
-// 	// event    ports.EventPublisher
-// }
+type authSvc struct {
+	config         ports.Config
+	authRepo       ports.AuthRepository
+	eventPublisher ports.EventPublisher
+	// event    ports.EventPublisher
+}
 
 // // User represents the user data received from the message
-// type User struct {
-// 	ID       uint   `json:"id"`
-// 	Email    string `json:"email"`
-// 	Password string `json:"password"`
-// }
+type UserL struct {
+	ID       uint   `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
 
-// // NewTokenHandler creates a new TokenHandler with the given authService
-// func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event ports.EventPublisher) authService {
-// 	return authService{config: config, authRepo: authRepo, event: event}
-// }
+// NewTokenHandler creates a new TokenHandler with the given authService
+func NewAuthSvc(config ports.Config, authRepo ports.AuthRepository, eventPublisher ports.EventPublisher) authSvc {
+	return authSvc{config: config, authRepo: authRepo, eventPublisher: eventPublisher}
+}
+
+func (s authSvc) SignUp(ctx context.Context, req param.LoginRequest) (param.LoginResponse, error) {
+
+	// Create a LoginRequest struct (assuming it has Email and Password fields)
+	loginReq := param.LoginRequest{
+		Email:    req.Email,
+		Password: req.Password,
+	}
+
+	err := s.publishLoginRequest(ctx, loginReq)
+	if err != nil {
+		return param.LoginResponse{}, fmt.Errorf("failed to publish login request: %w", err)
+	}
+
+	// Return a message indicating login request is processing
+	return param.LoginResponse{}, nil
+}
+
+func (s authSvc) publishLoginRequest(ctx context.Context, req param.LoginRequest) error {
+
+	if err := s.eventPublisher.DeclareExchange("login_requests_exchange", "topic"); err != nil {
+		return fmt.Errorf("failed to declare exchange: %w", err)
+	}
+
+	queue, err := s.eventPublisher.CreateQueue("login_requests", true, false)
+	if err != nil {
+		return fmt.Errorf("failed to create queue: %w", err) // Propagate error
+	}
+
+	if err := s.eventPublisher.CreateBinding(queue.Name, "login_request.*", "login_requests_exchange"); err != nil {
+		return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+	}
+
+	data, jErr := json.Marshal(req)
+	if jErr != nil {
+		return fmt.Errorf("failed to marshal login request: %w", jErr)
+	}
+
+	if err := s.eventPublisher.Publish(ctx, "user_events", "registration.new", amqp.Publishing{
+		ContentType:   "text/plain",
+		DeliveryMode:  amqp.Persistent,
+		Body:          data,
+		CorrelationId: uuid.NewString(),
+	}); err != nil {
+		return fmt.Errorf("failed to publish user to auth-service: %w", err)
+	}
+	log.Println("User event published successfully")
+
+	return nil
+}
+
+func (s authService) ConsumeMessages() (<-chan interface{}, error) {
+
+	msgs, err := s.event.Consume("login_requests", "auth_consumer", false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to consume messages: %w", err)
+	}
+
+	userChannel := make(chan interface{})
+
+	go func() {
+		defer close(userChannel)
+
+		for d := range msgs {
+			var data interface{}
+			err := json.Unmarshal(d.Body, &data) // Unmarshal to generic interface
+			if err != nil {
+				log.Println("Error unmarshalling data:", err)
+				// Handle the error accordingly
+				continue
+			}
+
+			switch msg := data.(type) {
+			case param.LoginRequest: // Handle login request
+				// You can access login request data directly from msg (assuming correct type)
+				userChannel <- msg // Send login request for further processing (optional)
+				// ... (optional logic for handling login request within auth service) ...
+			case string: // Handle user service response (assuming string message)
+				if msg == "user_validated" {
+					// User validated, generate tokens
+					// ... (logic for token generation and response) ...
+				} else if msg == "user_not_found" {
+					// User not found, return error response
+					returnError := errors.New("user not found")
+					userChannel <- returnError // Send error message (optional)
+				} else {
+					// Handle unexpected message type
+					log.Printf("Unknown message type received: %s", msg)
+				}
+			default:
+				// Handle unexpected data type
+				log.Printf("Unexpected data type received: %T", data)
+			}
+
+			d.Ack(false) // Acknowledge the message after processing
+		}
+	}()
+
+	return userChannel, nil
+}
 
 // func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.LoginResponse, error) {
 
