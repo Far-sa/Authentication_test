@@ -46,3 +46,7 @@ func (m *MockEventPublisher) CreateBinding(name, binding, exchange string) error
 	args := m.Called("CreateBinding", name, binding, exchange)
 	return args.Error(0)
 }
+func (m *MockEventPublisher) Consume(queueName, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {
+	args := m.Called(queueName, consumer, autoAck)
+	return args.Get(0).(chan amqp.Delivery), args.Error(1)
+}

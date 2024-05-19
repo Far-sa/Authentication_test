@@ -125,7 +125,7 @@ func (us Service) CheckUserExistence(ctx context.Context) (param.RegisterRespons
 		if !ok {
 			return param.RegisterResponse{}, errors.New("user not found") // No matching user found
 		}
-		loginUser, ok := data.(entity.User) // Cast data to the User struct
+		loginUser, ok := data.(param.RegisterRequest) // Cast data to the User struct
 		if !ok {
 			return param.RegisterResponse{}, errors.New("invalid data received from queue")
 		}
@@ -141,7 +141,7 @@ func (us Service) CheckUserExistence(ctx context.Context) (param.RegisterRespons
 			User       entity.User `json:"user"`
 			SuccessMsg string      `json:"successMsg"`
 		}{
-			User:       *user,
+			User:       user,
 			SuccessMsg: "User validated successfully", // Adjust message as needed
 		}
 
@@ -159,24 +159,24 @@ func (us Service) CheckUserExistence(ctx context.Context) (param.RegisterRespons
 			return param.RegisterResponse{}, fmt.Errorf("failed to publish response: %w", err)
 		}
 
-		return param.RegisterResponse{User: param.UserInfo{ID: user.ID, Email: user.Email, PhoneNumber: user.PhoneNumber}}, nil
+		return param.RegisterResponse{User: param.UserInfo{ID: message.User.ID, Email: message.User.Email}}, nil
 	}
 }
 
-func (us Service) CheckUserData(ctx context.Context, user entity.User) (*entity.User, error) {
+func (us Service) CheckUserData(ctx context.Context, user param.RegisterRequest) (entity.User, error) {
 	// Implement logic to check user data based on email using injected UserRepository
 	existingUser, err := us.userRepo.GetUserByEmail(ctx, user.Email)
 	if err != nil {
 		// Handle potential errors from userRepo.GetUserByEmail
 		if errors.Is(err, sql.ErrNoRows) { // Handle user not found error
-			return nil, fmt.Errorf("user not found")
+			return entity.User{}, fmt.Errorf("user not found")
 		}
-		return nil, fmt.Errorf("error fetching user data: %w", err)
+		return entity.User{}, fmt.Errorf("error fetching user data: %w", err)
 	}
 
 	// Additional checks or data manipulation on the existing user object (optional)
 
-	return existingUser, nil
+	return entity.User{ID: existingUser.ID, Email: existingUser.Email}, nil
 }
 
 func (us Service) consumeMessages() (<-chan interface{}, error) {

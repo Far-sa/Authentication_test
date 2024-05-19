@@ -34,6 +34,11 @@ func (m *MockUserRepository) CreateUser(ctx context.Context, user entity.User) (
 	return ret, err
 }
 
+func (m *MockUserRepository) GetUserByEmail(ctx context.Context, email string) (*entity.User, error) {
+	args := m.Called(ctx, email)
+	return args.Get(0).(*entity.User), args.Error(1)
+}
+
 func (m *MockUserRepository) GetUserByID(ctx context.Context, userID uint) (entity.User, error) {
 	args := m.Called(ctx, userID)
 	var ret entity.User
