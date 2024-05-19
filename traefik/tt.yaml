@@ -24,18 +24,26 @@ middlewares:
   # Define an IP whitelist middleware
   ipwhitelist:
     # Replace with allowed IP addresses
-    srcRange: ["10.0.0.0/16", "192.168.1.0/24"]
+    srcRange: ["your_allowed_ip_1", "your_allowed_ip_2","your_allowed_network_range"]
+    # Define your custom middleware
+  basic_auth:
+    path: "/path/to/basic_auth_middleware"
 
+  # Custom middleware for rate limiting
+  rate_limit:
+    path: "/path/to/rate_limit_middleware"
+
+  # ... other middleware definitions
 
 router:
   # Define routers for your microservices
   rules:
-    - service: auth
+    - service: authservice
       path: /login  # Match only the "/login" path
       match: Host(`authservice`)
       tls: { certResolver: myresolver }
 
-    - service: user
+    - service: userservice
       path: /register  # Match only "/register" path
       match: Host(`userservice`)
       tls: { certResolver: myresolver }
@@ -47,10 +55,14 @@ router:
       tls: { certResolver: myresolver }
 
     - service: prometheus
+      path: /metrics
+      middlewares:
+        - internal_auth  # (optional) for additional security within the network
       match: Host(`prometheus`)
       tls: { certResolver: myresolver }
 
     - service: grafana
+      path: /api/prometheus/scrape
       match: Host(`grafana`)
       tls: { certResolver: myresolver }
 
@@ -62,15 +74,16 @@ router:
       match: Host(`alertmanager`)
       tls: { certResolver: myresolver }
 
+# Internal Routing:
 services:
   auth:
     loadBalancer:
       servers:
-        - address: "http://auth-service:8080"
+        - address: "http://authservice:8001"
   user:
     loadBalancer:
       servers:
-        - address: "http://user-service:8081"
+        - address: "http://userservice:8000"
   rabbitmq:
     loadBalancer:
       servers:

@@ -18,15 +18,11 @@ services:
       - "443:443"
       - "8080:8080"  # Expose Traefik dashboard
     networks:
-      - traefik-network
-      - auth-network
-      - user-network
-      - monitoring
-      - rabbitmq-network
+      - shared-net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./letsencrypt:/letsencrypt
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml
+      - ./traefik/traefik_conf.yml:/etc/traefik/traefik.yml
 
     labels:
       - "traefik.enable=true"
@@ -56,9 +52,7 @@ services:
       - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq`)" # rabbitmq.example.com
       - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
     networks:
-      - rabbitmq-network
-      # - auth-network
-      # - user-network
+      - shared-net
 
   postgres:
     image: postgres:12-alpine
@@ -145,12 +139,15 @@ services:
     restart: always
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.authService.rule=Host(`authservice`)" # auth.example.com
-      - "traefik.http.services.authService.loadbalancer.server.port=8001"
+      - "traefik.http.routers.auth.rule=Host(`authservice`) && PathPrefix(`/login`)" # auth.example.com
+      - "traefik.http.services.auth.loadbalancer.server.port=8001"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      - "traefik.http.routers.auth.tls=true"
+      - "traefik.http.routers.auth.tls.certresolver=myresolver"
     networks:
       - auth-network
-      - rabbitmq-network
-      - monitoring
+      - shared-net
+
 
   userservice:
     build:
@@ -180,12 +177,24 @@ services:
     restart: always
     networks:
       - user-network
-      - rabbitmq-network
-      - monitoring
+      - shared-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.userService.rule=Host(`userservice`)" # user.example.com
-      - "traefik.http.services.userService.loadbalancer.server.port=8000"
+      - "traefik.http.routers.user.rule=Host(`userservice`) && PathPrefix(`/user/register`)" # user.example.com
+      - "traefik.http.services.user.loadbalancer.server.port=8000"
+      - "traefik.http.routers.user.entrypoints=websecure"
+      - "traefik.http.routers.user.tls=true"
+      - "traefik.http.routers.user.tls.certresolver=myresolver"
+      - "traefik.http.routers.user-protected.rule=Host(`userservice`) && (PathPrefix(`/user/update`) || PathPrefix(`/user/profile`) || PathPrefix(`/user/settings`) || PathPrefix(`/user/other-protected-path`))"
+      - "traefik.http.routers.user-protected.entrypoints=websecure"
+      - "traefik.http.routers.user-protected.tls=true"
+      - "traefik.http.routers.user-protected.tls.certresolver=myresolver"
+      - "traefik.http.middlewares.redirect-to-login-user.redirectregex.regex=^https?://localhost/user/(update|profile|settings|other-protected-path)"
+      - "traefik.http.middlewares.redirect-to-login-user.redirectregex.replacement=https://localhost/login"
+      - "traefik.http.middlewares.redirect-to-login-user.redirectregex.permanent=false"
+      - "traefik.http.routers.user-protected.middlewares=redirect-to-login-user"
+
+
 
   prometheus:
     image: prom/prometheus
@@ -210,7 +219,7 @@ services:
       - "traefik.http.routers.prometheus.rule=Host(`prometheus`)" # prometheus.example.com
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
     networks:
-      - monitoring
+      - shared-net
 
   node-exporter:
     image: prom/node-exporter
@@ -247,7 +256,7 @@ services:
       - "traefik.http.routers.alertmanager.rule=Host(`alertmanager`)" # alertmanager.example.com
       - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
     networks:
-      - monitoring
+      - shared-net
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor
@@ -266,7 +275,7 @@ services:
       - "traefik.http.routers.cadvisor.rule=Host(`cadvisor`)" # cadvisor.example.com
       - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
     networks:
-      - monitoring
+      - shared-net
 
   grafana:
     image: grafana/grafana
@@ -288,10 +297,10 @@ services:
       - "traefik.http.routers.grafana.rule=Host(`grafana`)" # grafana.example.com
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     networks:
-      - monitoring
+      - shared-net
 
 networks:
-  traefik-network:
+  shared-net:
     external: true
     driver: bridge
   auth-network:
@@ -300,16 +309,16 @@ networks:
   user-network:
     external: true
     driver: bridge
-  rabbitmq-network:
-    external: true
-    driver: bridge
-  monitoring:
-    external: true
-    driver: bridge
-
-# volumes:
-#   prometheus_data: {}
-#   grafana_data: {}
+  
+  # traefik-network:
+  #   external: true
+  #   driver: bridge
+  # rabbitmq-network:
+  #   external: true
+  #   driver: bridge
+  # monitoring:
+  #   external: true
+  #   driver: bridge
 
 #  networks:
 #   traefik-network:
