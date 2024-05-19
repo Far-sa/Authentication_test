@@ -55,6 +55,15 @@ func (r MysqlDB) CreateUser(ctx context.Context, user entity.User) (entity.User,
 	return user, nil
 }
 
+func (r MysqlDB) GetUserByEmail(ctx context.Context, email string) (*entity.User, error) {
+	var user entity.User
+	err := sqlx.GetContext(ctx, r.db, &user, "SELECT * FROM users WHERE email = $1", email)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (r MysqlDB) GetUserByID(ctx context.Context, userID uint) (entity.User, error) {
 	var user entity.User
 	err := r.db.GetContext(ctx, &user, "SELECT * FROM users WHERE id = ?", userID)

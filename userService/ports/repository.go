@@ -9,6 +9,7 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user entity.User) (entity.User, error)
 	GetUserByID(ctx context.Context, userID uint) (entity.User, error)
 	IsPhoneNumberUnique(phoneNumber string) (bool, error)
+	GetUserByEmail(ctx context.Context, email string) (*entity.User, error)
 }
 
 // MigrationManager interface defines methods for managing migrations

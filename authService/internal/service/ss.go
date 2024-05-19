@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -72,8 +73,51 @@ func (s authSvc) SignUp(ctx context.Context, req param.LoginRequest) (param.Logi
 		return param.LoginResponse{}, fmt.Errorf("failed to publish login request: %w", err)
 	}
 
+	userChan, err := s.ConsumeMessages()
+	if err != nil {
+
+	}
+	select {
+	case <-ctx.Done():
+		// Handle timeout or context cancellation
+		return param.LoginResponse{}, errors.New("timed out waiting for user information")
+	case data, ok := <-userChan:
+		if !ok {
+			return param.LoginResponse{}, errors.New("user not found") // No matching user found
+		}
+		user, ok := data.(User) // Cast data to the User struct
+		if !ok {
+			return param.LoginResponse{}, errors.New("invalid data received from queue")
+		}
+		// valid, err := ComparePassword(user.Password, req.Password)
+		// if err != nil {
+		// 	return param.LoginResponse{}, fmt.Errorf("failed to compare password: %w", err)
+		// }
+
+		// if !valid {
+		// 	return param.LoginResponse{}, errors.New("invalid password") // Indicate invalid password
+		// }
+
+		accessToken, err := s.createAccessToken(user)
+		if err != nil {
+			return param.LoginResponse{}, fmt.Errorf("failed to create access token: %w", err)
+		}
+
+		refreshToken, err := s.refreshAccessToken(user)
+		if err != nil {
+			return param.LoginResponse{}, fmt.Errorf("failed to create refresh token: %w", err)
+		}
+
+		if err := s.authRepo.StoreToken(user.ID, accessToken, time.Now().Add(72*time.Hour)); err != nil {
+			fmt.Println("Error storing token:", err)
+		}
+
+		return param.LoginResponse{
+			User:   param.UserInfo{ID: uint(user.ID), Email: user.Email},
+			Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
+		}, nil
+	}
 	// Return a message indicating login request is processing
-	return param.LoginResponse{}, nil
 }
 
 func (s authSvc) publishLoginRequest(ctx context.Context, req param.LoginRequest) error {
@@ -109,9 +153,9 @@ func (s authSvc) publishLoginRequest(ctx context.Context, req param.LoginRequest
 	return nil
 }
 
-func (s authService) ConsumeMessages() (<-chan interface{}, error) {
+func (s authSvc) ConsumeMessages() (<-chan interface{}, error) {
 
-	msgs, err := s.event.Consume("login_requests", "auth_consumer", false)
+	msgs, err := s.eventPublisher.Consume("login_requests", "auth_consumer", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to consume messages: %w", err)
 	}
@@ -130,6 +174,8 @@ func (s authService) ConsumeMessages() (<-chan interface{}, error) {
 				continue
 			}
 
+			// The existing auth service consumer (listening to "login_requests") can receive
+			// both the initial login request and the user service response on the same queue.
 			switch msg := data.(type) {
 			case param.LoginRequest: // Handle login request
 				// You can access login request data directly from msg (assuming correct type)

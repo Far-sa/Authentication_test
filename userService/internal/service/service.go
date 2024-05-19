@@ -2,6 +2,7 @@ package userService
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -110,38 +111,72 @@ func (us Service) publishUserData(ctx context.Context, createdUser interface{}) 
 }
 
 func (us Service) CheckUserExistence(ctx context.Context) (param.RegisterResponse, error) {
-	userChan, err := us.consumeMessages()
+
+	msgs, err := us.consumeMessages()
 	if err != nil {
 		return param.RegisterResponse{}, fmt.Errorf("failed to consume messages: %w", err)
 	}
-	_ = userChan
-	//TODO add logic to compare data between database and req
+
 	select {
 	case <-ctx.Done():
 		// Handle timeout or context cancellation
 		return param.RegisterResponse{}, errors.New("timed out waiting for user information")
-	case data, ok := <-userChan:
+	case data, ok := <-msgs:
 		if !ok {
 			return param.RegisterResponse{}, errors.New("user not found") // No matching user found
 		}
-		user, ok := data.(entity.User) // Cast data to the User struct
+		loginUser, ok := data.(entity.User) // Cast data to the User struct
 		if !ok {
 			return param.RegisterResponse{}, errors.New("invalid data received from queue")
 		}
-		// if err != nil {
-		// 	return param.RegisterResponse{}, fmt.Errorf("failed to compare password: %w", err)
-		// }
 
-		// if !valid {
-		// 	return param.RegisterResponse{}, errors.New("invalid password") // Indicate invalid password
-		// }
-
-		if err := us.userRepo.CheckUserData(user.ID, accessToken, time.Now().Add(72*time.Hour)); err != nil {
-			fmt.Println("Error storing token:", err)
+		user, err := us.CheckUserData(ctx, loginUser)
+		if err != nil {
+			return param.RegisterResponse{}, fmt.Errorf("user not found: %w", err) // Wrap database error
 		}
 
-		return param.RegisterResponse{}, nil
+		//! Publish
+		// Create a message containing user data and success message
+		message := struct {
+			User       entity.User `json:"user"`
+			SuccessMsg string      `json:"successMsg"`
+		}{
+			User:       *user,
+			SuccessMsg: "User validated successfully", // Adjust message as needed
+		}
+
+		messageBytes, err := json.Marshal(message)
+		if err != nil {
+			return param.RegisterResponse{}, fmt.Errorf("failed to marshal message: %w", err)
+		}
+
+		//TODO add exchange and routing key
+		err = us.eventPublisher.Publish(ctx, "", "", amqp.Publishing{
+			Body:        messageBytes,
+			ContentType: "application/json", // Adjust content type if needed
+		}) // Publish the message
+		if err != nil {
+			return param.RegisterResponse{}, fmt.Errorf("failed to publish response: %w", err)
+		}
+
+		return param.RegisterResponse{User: param.UserInfo{ID: user.ID, Email: user.Email, PhoneNumber: user.PhoneNumber}}, nil
 	}
+}
+
+func (us Service) CheckUserData(ctx context.Context, user entity.User) (*entity.User, error) {
+	// Implement logic to check user data based on email using injected UserRepository
+	existingUser, err := us.userRepo.GetUserByEmail(ctx, user.Email)
+	if err != nil {
+		// Handle potential errors from userRepo.GetUserByEmail
+		if errors.Is(err, sql.ErrNoRows) { // Handle user not found error
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("error fetching user data: %w", err)
+	}
+
+	// Additional checks or data manipulation on the existing user object (optional)
+
+	return existingUser, nil
 }
 
 func (us Service) consumeMessages() (<-chan interface{}, error) {
