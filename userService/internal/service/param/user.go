@@ -18,8 +18,9 @@ type RegisterResponse struct {
 }
 
 type LoginRequest struct {
-	PhoneNumber string `json:"phone_number"`
-	Password    string `json:"password"`
+	Email string `json:"email"`
+	// PhoneNumber string `json:"phone_number"`
+	Password string `json:"password"`
 }
 
 type Tokens struct {
@@ -28,8 +29,10 @@ type Tokens struct {
 }
 
 type LoginResponse struct {
-	User   UserInfo `json:"user"`
-	Tokens Tokens   `json:"tokens"`
+	User      UserInfo `json:"user"`
+	UserExist bool     `json:"userExist"`
+	Error     string   `json:"error,omitempty"` // Optional field for error me
+	// Tokens Tokens   `json:"tokens"`
 }
 
 type ProfileRequest struct {

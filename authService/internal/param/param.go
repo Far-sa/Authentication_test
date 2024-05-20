@@ -21,3 +21,15 @@ type LoginResponse struct {
 	User   UserInfo `json:"user"`
 	Tokens Tokens   `json:"token"`
 }
+type UserResponse struct {
+	User      UserInfo `json:"user"`
+	UserExist bool     `json:"userExist"`
+	Error     string   `json:"error,omitempty"` // Optional field for error me
+	// Tokens Tokens   `json:"tokens"`
+}
+
+type User struct {
+	ID       uint   `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}

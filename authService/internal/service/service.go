@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"golang.org/x/crypto/bcrypt"
 	//"github.com/dgrijalva/jwt-go"
 )
@@ -34,28 +36,33 @@ const (
 )
 
 type authService struct {
-	config   ports.Config
-	authRepo ports.AuthRepository
-	event    ports.EventPublisher
-}
-
-// User represents the user data received from the message
-type User struct {
-	ID       uint   `json:"id"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	config         ports.Config
+	authRepo       ports.AuthRepository
+	eventPublisher ports.EventPublisher
 }
 
 // NewTokenHandler creates a new TokenHandler with the given authService
 func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event ports.EventPublisher) authService {
-	return authService{config: config, authRepo: authRepo, event: event}
+	return authService{config: config, authRepo: authRepo, eventPublisher: event}
 }
 
 func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.LoginResponse, error) {
 
-	//! sequntial
+	// Create a LoginRequest struct (assuming it has Email and Password fields)
+	loginReq := param.LoginRequest{
+		Email:    req.Email,
+		Password: req.Password,
+	}
 
-	userChan, err := s.consumeMessages()
+	err := s.publishLoginRequest(ctx, loginReq)
+	if err != nil {
+		return param.LoginResponse{}, fmt.Errorf("failed to publish login request: %w", err)
+	}
+
+	//! Wait for response from user service (see below) must return a function
+	//! func (as AuthService) HandleLogin(ctx context.Context, loginRequest login.Request) error {}
+	//! func waitForResponse(ctx context.Context, consumer consumer.Consumer, userEmail string) error {}
+	msgs, err := s.consumeMessages()
 	if err != nil {
 		return param.LoginResponse{}, fmt.Errorf("failed to consume messages: %w", err)
 	}
@@ -64,28 +71,22 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 	case <-ctx.Done():
 		// Handle timeout or context cancellation
 		return param.LoginResponse{}, errors.New("timed out waiting for user information")
-	case data, ok := <-userChan:
+	case data, ok := <-msgs:
 		if !ok {
 			return param.LoginResponse{}, errors.New("user not found") // No matching user found
 		}
-		user, ok := data.(User) // Cast data to the User struct
+		user, ok := data.(param.UserResponse) // Cast data to the User struct
 		if !ok {
 			return param.LoginResponse{}, errors.New("invalid data received from queue")
 		}
-		// case data := <-userChan:
-		// 	user, ok := data.(User) // Cast data to the User struct
-		// 	if !ok {
-		// 		return param.LoginResponse{}, errors.New("invalid data received from queue")
-		// 	}
+		// valid, err := ComparePassword(user.Password, req.Password)
+		// if err != nil {
+		// 	return param.LoginResponse{}, fmt.Errorf("failed to compare password: %w", err)
+		// }
 
-		valid, err := ComparePassword(user.Password, req.Password)
-		if err != nil {
-			return param.LoginResponse{}, fmt.Errorf("failed to compare password: %w", err)
-		}
-
-		if !valid {
-			return param.LoginResponse{}, errors.New("invalid password") // Indicate invalid password
-		}
+		// if !valid {
+		// 	return param.LoginResponse{}, errors.New("invalid password") // Indicate invalid password
+		// }
 
 		accessToken, err := s.createAccessToken(user)
 		if err != nil {
@@ -97,20 +98,53 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 			return param.LoginResponse{}, fmt.Errorf("failed to create refresh token: %w", err)
 		}
 
-		if err := s.authRepo.StoreToken(user.ID, accessToken, time.Now().Add(72*time.Hour)); err != nil {
+		if err := s.authRepo.StoreToken(user.User.ID, accessToken, time.Now().Add(72*time.Hour)); err != nil {
 			fmt.Println("Error storing token:", err)
 		}
 
 		return param.LoginResponse{
-			User:   param.UserInfo{ID: uint(user.ID), Email: user.Email},
+			User:   param.UserInfo{ID: uint(user.User.ID), Email: user.User.Email},
 			Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
 		}, nil
 	}
 }
 
+func (s authService) publishLoginRequest(ctx context.Context, req param.LoginRequest) error {
+
+	if err := s.eventPublisher.DeclareExchange("login_requests_exchange", "topic"); err != nil {
+		return fmt.Errorf("failed to declare exchange: %w", err)
+	}
+
+	queue, err := s.eventPublisher.CreateQueue("login_requests", true, false)
+	if err != nil {
+		return fmt.Errorf("failed to create queue: %w", err) // Propagate error
+	}
+
+	if err := s.eventPublisher.CreateBinding(queue.Name, "login_request.*", "login_requests_exchange"); err != nil {
+		return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+	}
+
+	data, jErr := json.Marshal(req)
+	if jErr != nil {
+		return fmt.Errorf("failed to marshal login request: %w", jErr)
+	}
+
+	if err := s.eventPublisher.Publish(ctx, "user_events", "registration.new", amqp.Publishing{
+		ContentType:   "text/plain",
+		DeliveryMode:  amqp.Persistent,
+		Body:          data,
+		CorrelationId: uuid.NewString(),
+	}); err != nil {
+		return fmt.Errorf("failed to publish user to auth-service: %w", err)
+	}
+	log.Println("User event published successfully")
+
+	return nil
+}
+
 func (s authService) consumeMessages() (<-chan interface{}, error) {
 
-	msgs, err := s.event.Consume("registration_queue", "auth_consumer", false)
+	msgs, err := s.eventPublisher.Consume("login_requests", "auth_consumer", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to consume messages: %w", err)
 	}
@@ -121,30 +155,51 @@ func (s authService) consumeMessages() (<-chan interface{}, error) {
 		defer close(userChannel)
 
 		for d := range msgs {
-			// Print the raw data received from the queue
-			fmt.Println("Raw data:", string(d.Body))
-
-			var user User
-			user, err := UnmarshalUser(d.Body) // Call unmarshalUser function
+			// data UserResponse
+			var data interface{}
+			data, err := UnmarshalData(d.Body) // Unmarshal to generic interface
 			if err != nil {
 				log.Println("Error unmarshalling data:", err)
 				// Handle the error accordingly
+				continue
 			} else {
-				// Process the user data as needed
-				userChannel <- user
-				// Acknowledge the message after processing
-				d.Ack(false)
+				userChannel <- data
 			}
+
+			// The existing auth service consumer (listening to "login_requests") can receive
+			// both the initial login request and the user service response on the same queue.
+			// switch msg := data.(type) {
+			// case param.LoginRequest: // Handle login request
+			// 	// You can access login request data directly from msg (assuming correct type)
+			// 	userChannel <- msg // Send login request for further processing (optional)
+			// 	// ... (optional logic for handling login request within auth service) ...
+			// case string: // Handle user service response (assuming string message)
+			// 	if msg == "user_validated" {
+			// 		// User validated, generate tokens
+			// 		// ... (logic for token generation and response) ...
+			// 	} else if msg == "user_not_found" {
+			// 		// User not found, return error response
+			// 		returnError := errors.New("user not found")
+			// 		userChannel <- returnError // Send error message (optional)
+			// 	} else {
+			// 		// Handle unexpected message type
+			// 		log.Printf("Unknown message type received: %s", msg)
+			// 	}
+			// default:
+			// 	// Handle unexpected data type
+			// 	log.Printf("Unexpected data type received: %T", data)
+			// }
+
+			d.Ack(false) // Acknowledge the message after processing
 		}
 	}()
 
-	log.Println("Consuming, to close the program press CTRL+C")
 	return userChannel, nil
 
 }
 
-func UnmarshalUser(data []byte) (User, error) {
-	var user User
+func UnmarshalData(data []byte) (param.UserResponse, error) {
+	var user param.UserResponse
 	err := json.Unmarshal(data, &user)
 	return user, err
 }
@@ -160,12 +215,12 @@ func ComparePassword(hashedPassword, reqPassword string) (bool, error) {
 	return true, nil // Password matches
 }
 
-func (s authService) createAccessToken(user User) (string, error) {
-	return s.createToken(user.ID, AccessTokenSubject, AccessTokenExpirationDuration)
+func (s authService) createAccessToken(user param.UserResponse) (string, error) {
+	return s.createToken(user.User.ID, AccessTokenSubject, AccessTokenExpirationDuration)
 }
 
-func (s authService) refreshAccessToken(user User) (string, error) {
-	return s.createToken(user.ID, RefreshTokenSubject, RefreshTokenExpirationDuration)
+func (s authService) refreshAccessToken(user param.UserResponse) (string, error) {
+	return s.createToken(user.User.ID, RefreshTokenSubject, RefreshTokenExpirationDuration)
 }
 
 // "github.com/golang-jwt/jwt/v4"

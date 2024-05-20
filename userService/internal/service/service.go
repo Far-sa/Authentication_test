@@ -110,32 +110,33 @@ func (us Service) publishUserData(ctx context.Context, createdUser interface{}) 
 	return nil
 }
 
-func (us Service) CheckUserExistence(ctx context.Context) (param.RegisterResponse, error) {
+func (us Service) CheckUserExistence(ctx context.Context) (param.LoginResponse, error) {
 
 	msgs, err := us.consumeMessages()
 	if err != nil {
-		return param.RegisterResponse{}, fmt.Errorf("failed to consume messages: %w", err)
+		return param.LoginResponse{}, fmt.Errorf("failed to consume messages: %w", err)
 	}
 
 	select {
 	case <-ctx.Done():
 		// Handle timeout or context cancellation
-		return param.RegisterResponse{}, errors.New("timed out waiting for user information")
+		return param.LoginResponse{}, errors.New("timed out waiting for user information")
 	case data, ok := <-msgs:
 		if !ok {
-			return param.RegisterResponse{}, errors.New("user not found") // No matching user found
+			return param.LoginResponse{}, errors.New("user not found") // No matching user found
 		}
-		loginUser, ok := data.(param.RegisterRequest) // Cast data to the User struct
+		loginUser, ok := data.(param.LoginRequest) // Cast data to the User struct
 		if !ok {
-			return param.RegisterResponse{}, errors.New("invalid data received from queue")
+			return param.LoginResponse{}, errors.New("invalid data received from queue")
 		}
 
 		user, err := us.CheckUserData(ctx, loginUser)
 		if err != nil {
-			return param.RegisterResponse{}, fmt.Errorf("user not found: %w", err) // Wrap database error
+			return param.LoginResponse{UserExist: false, Error: "user not found"}, fmt.Errorf("user not found: %w", err) // Wrap database error
 		}
 
 		//! Publish
+
 		// Create a message containing user data and success message
 		message := struct {
 			User       entity.User `json:"user"`
@@ -147,7 +148,7 @@ func (us Service) CheckUserExistence(ctx context.Context) (param.RegisterRespons
 
 		messageBytes, err := json.Marshal(message)
 		if err != nil {
-			return param.RegisterResponse{}, fmt.Errorf("failed to marshal message: %w", err)
+			return param.LoginResponse{}, fmt.Errorf("failed to marshal message: %w", err)
 		}
 
 		//TODO add exchange and routing key
@@ -156,14 +157,14 @@ func (us Service) CheckUserExistence(ctx context.Context) (param.RegisterRespons
 			ContentType: "application/json", // Adjust content type if needed
 		}) // Publish the message
 		if err != nil {
-			return param.RegisterResponse{}, fmt.Errorf("failed to publish response: %w", err)
+			return param.LoginResponse{}, fmt.Errorf("failed to publish response: %w", err)
 		}
 
-		return param.RegisterResponse{User: param.UserInfo{ID: message.User.ID, Email: message.User.Email}}, nil
+		return param.LoginResponse{User: param.UserInfo{ID: message.User.ID, Email: message.User.Email}, UserExist: true, Error: ""}, nil
 	}
 }
 
-func (us Service) CheckUserData(ctx context.Context, user param.RegisterRequest) (entity.User, error) {
+func (us Service) CheckUserData(ctx context.Context, user param.LoginRequest) (entity.User, error) {
 	// Implement logic to check user data based on email using injected UserRepository
 	existingUser, err := us.userRepo.GetUserByEmail(ctx, user.Email)
 	if err != nil {
@@ -195,11 +196,12 @@ func (us Service) consumeMessages() (<-chan interface{}, error) {
 			// Print the raw data received from the queue
 			fmt.Println("Raw data:", string(d.Body))
 
+			//! var user param.LoginRequest
 			var user entity.User
 			user, err := UnmarshalUser(d.Body) // Call unmarshalUser function
 			if err != nil {
 				log.Println("Error unmarshalling data:", err)
-				// Handle the error accordingly
+				//continue
 			} else {
 				// Process the user data as needed
 				userChannel <- user

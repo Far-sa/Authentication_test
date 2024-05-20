@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"auth-svc/internal/param"
 	"auth-svc/internal/service"
 	"reflect"
 	"testing"
@@ -54,20 +55,20 @@ func TestUnmarshalUser(t *testing.T) {
 	type testCase struct {
 		name     string
 		input    []byte
-		expected service.User
+		expected param.User
 		wantErr  bool
 	}
 	cases := []testCase{
 		{
 			name:     "Valid JSON data",
 			input:    []byte(`{"name": "Alice", "age": 30}`),
-			expected: service.User{ID: 1, Email: "Teo", Password: "123456"},
+			expected: param.User{ID: 1, Email: "Teo", Password: "123456"},
 			wantErr:  false,
 		},
 		{
 			name:     "Invalid JSON data",
 			input:    []byte(`invalid json`),
-			expected: service.User{},
+			expected: param.User{},
 			wantErr:  true,
 		},
 	}

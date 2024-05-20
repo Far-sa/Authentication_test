@@ -38,13 +38,13 @@ func (m *mockAuthService) ComparePassword(hashPass, reqPass string) (bool, error
 }
 
 // CreateAccessToken mocks the createAccessToken method
-func (m *mockAuthService) CreateAccessToken(user service.User) (string, error) {
+func (m *mockAuthService) CreateAccessToken(user param.User) (string, error) {
 	args := m.Called(user)
 	return args.Get(0).(string), args.Error(1)
 }
 
 // RefreshAccessToken mocks the refreshAccessToken method
-func (m *mockAuthService) RefreshAccessToken(user service.User) (string, error) {
+func (m *mockAuthService) RefreshAccessToken(user param.User) (string, error) {
 	args := m.Called(user)
 	return args.Get(0).(string), args.Error(1)
 }
@@ -59,7 +59,7 @@ func TestLoginServiceLogic(t *testing.T) {
 	// Arrange
 	mockAuthSvc := new(mockAuthService)
 	expectedPassword := "correctPassword"
-	expectedUser := service.User{ID: 1, Email: "test@example.com", Password: "hashedPassword"}
+	expectedUser := param.User{ID: 1, Email: "test@example.com", Password: "hashedPassword"}
 
 	userChan := make(chan interface{})
 	userChan <- expectedUser
@@ -141,4 +141,24 @@ func (m *mockEventPublisher) Consume(queueName, consumer string, autoAck bool) (
 	args := m.Called(queueName, consumer, autoAck)
 	return args.Get(0).(<-chan amqp.Delivery), args.Error(1)
 
+}
+
+func (m *mockEventPublisher) DeclareExchange(name, kind string) error {
+	args := m.Called(name, kind)
+	return args.Error(0)
+}
+
+func (m *mockEventPublisher) CreateQueue(queueName string, durable, autodelete bool) (amqp.Queue, error) {
+	args := m.Called(queueName, durable, autodelete)
+	return args.Get(0).(amqp.Queue), args.Error(1)
+}
+
+func (m *mockEventPublisher) CreateBinding(queueName, routingKey, exchangeName string) error {
+	args := m.Called(queueName, routingKey, exchangeName)
+	return args.Error(0)
+}
+
+func (m *mockEventPublisher) Publish(ctx context.Context, exchange, routingKey string, options amqp.Publishing) error {
+	args := m.Called(ctx, exchange, routingKey, options)
+	return args.Error(0)
 }
