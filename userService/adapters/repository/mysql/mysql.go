@@ -2,7 +2,9 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"log"
 	"time"
 	"user-svc/internal/entity"
 	"user-svc/ports"
@@ -57,8 +59,13 @@ func (r MysqlDB) CreateUser(ctx context.Context, user entity.User) (entity.User,
 
 func (r MysqlDB) GetUserByEmail(ctx context.Context, email string) (*entity.User, error) {
 	var user entity.User
-	err := sqlx.GetContext(ctx, r.db, &user, "SELECT * FROM users WHERE email = $1", email)
+	err := r.db.QueryRowContext(ctx, "SELECT id, phone_number, email FROM users WHERE email = ?", email).Scan(&user.ID, &user.PhoneNumber, &user.Email)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Printf("No user found with email: %s", email)
+		} else {
+			log.Printf("Error querying user by email: %v", err)
+		}
 		return nil, err
 	}
 	return &user, nil

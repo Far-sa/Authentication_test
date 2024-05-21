@@ -56,73 +56,71 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 
 	err := s.publishLoginRequest(ctx, loginReq)
 	if err != nil {
+		log.Printf("Failed to publish login request: %v", err)
 		return param.LoginResponse{}, fmt.Errorf("failed to publish login request: %w", err)
 	}
 
 	//! Get response from user service
-	fmt.Println("wait for user service response")
+	log.Println("Waiting for user service response")
 
-	msgs, err := s.waitForConsumeMessages()
+	// msgs, err := s.waitForConsumeMessages()
+	// if err != nil {
+	// 	log.Printf("Failed to get user service response: %v", err)
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to consume messages from user-svc: %w", err)
+	// }
+
+	response, err := s.waitForUserServiceResponse(ctx, loginReq.Email)
 	if err != nil {
-		return param.LoginResponse{}, fmt.Errorf("failed to consume messages: %w", err)
+		log.Printf("Failed to get user service response: %v", err)
+		return param.LoginResponse{}, fmt.Errorf("failed to get user service response: %w", err)
 	}
 
-	select {
-	case <-ctx.Done():
-		// Handle timeout or context cancellation
-		return param.LoginResponse{}, errors.New("timed out waiting for user information")
-	case data, ok := <-msgs:
-		if !ok {
-			return param.LoginResponse{}, errors.New("user not found") // No matching user found
-		}
-		user, ok := data.(param.UserResponse) // Cast data to the User struct
-		if !ok {
-			return param.LoginResponse{}, errors.New("invalid data received from queue")
-		}
-		// valid, err := ComparePassword(user.Password, req.Password)
-		// if err != nil {
-		// 	return param.LoginResponse{}, fmt.Errorf("failed to compare password: %w", err)
-		// }
+	log.Printf("Received response from user service: %+v", response)
+	return response, nil
 
-		// if !valid {
-		// 	return param.LoginResponse{}, errors.New("invalid password") // Indicate invalid password
-		// }
+	// select {
+	// case <-ctx.Done():
+	// 	// Handle timeout or context cancellation
+	// 	return param.LoginResponse{}, errors.New("timed out waiting for user information")
+	// case data, ok := <-msgs:
+	// 	if !ok {
+	// 		return param.LoginResponse{}, errors.New("user not found") // No matching user found
+	// 	}
+	// 	user, ok := data.(param.UserResponse) // Cast data to the User struct
+	// 	if !ok {
+	// 		return param.LoginResponse{}, errors.New("invalid data received from queue")
+	// 	}
+	// 	// valid, err := ComparePassword(user.Password, req.Password)
+	// 	// if err != nil {
+	// 	// 	return param.LoginResponse{}, fmt.Errorf("failed to compare password: %w", err)
+	// 	// }
 
-		accessToken, err := s.createAccessToken(user)
-		if err != nil {
-			return param.LoginResponse{}, fmt.Errorf("failed to create access token: %w", err)
-		}
+	// 	// if !valid {
+	// 	// 	return param.LoginResponse{}, errors.New("invalid password") // Indicate invalid password
+	// 	// }
 
-		refreshToken, err := s.refreshAccessToken(user)
-		if err != nil {
-			return param.LoginResponse{}, fmt.Errorf("failed to create refresh token: %w", err)
-		}
+	// 	accessToken, err := s.createAccessToken(user)
+	// 	if err != nil {
+	// 		return param.LoginResponse{}, fmt.Errorf("failed to create access token: %w", err)
+	// 	}
 
-		if err := s.authRepo.StoreToken(user.User.ID, accessToken, time.Now().Add(72*time.Hour)); err != nil {
-			fmt.Println("Error storing token:", err)
-		}
+	// 	refreshToken, err := s.refreshAccessToken(user)
+	// 	if err != nil {
+	// 		return param.LoginResponse{}, fmt.Errorf("failed to create refresh token: %w", err)
+	// 	}
 
-		return param.LoginResponse{
-			User:   param.UserInfo{ID: uint(user.User.ID), Email: user.User.Email},
-			Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
-		}, nil
-	}
+	// 	if err := s.authRepo.StoreToken(user.User.ID, accessToken, time.Now().Add(72*time.Hour)); err != nil {
+	// 		fmt.Println("Error storing token:", err)
+	// 	}
+
+	// 	return param.LoginResponse{
+	// 		User:   param.UserInfo{ID: uint(user.User.ID), Email: user.User.Email},
+	// 		Tokens: param.Tokens{AccessToken: accessToken, RefreshToken: refreshToken},
+	// 	}, nil
+	// }
 }
 
 func (s authService) publishLoginRequest(ctx context.Context, req param.LoginRequest) error {
-
-	// if err := s.eventPublisher.DeclareExchange("auth_exchange", "direct"); err != nil {
-	// 	return fmt.Errorf("failed to declare exchange: %w", err)
-	// }
-
-	// queue, err := s.eventPublisher.CreateQueue("login_requests", true, false)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create queue: %w", err) // Propagate error
-	// }
-
-	// if err := s.eventPublisher.CreateBinding(queue.Name, "login", "auth_exchange"); err != nil {
-	// 	return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
-	// }
 
 	data, jErr := json.Marshal(req)
 	if jErr != nil {
@@ -142,76 +140,119 @@ func (s authService) publishLoginRequest(ctx context.Context, req param.LoginReq
 	return nil
 }
 
-func (s authService) waitForConsumeMessages() (<-chan interface{}, error) {
-
-	//TODO for consuming!
+// !!
+func (s *authService) waitForUserServiceResponse(ctx context.Context, email string) (param.LoginResponse, error) {
+	// 	//TODO for consuming!
 	if err := s.eventPublisher.DeclareExchange("auth_exchange", "direct"); err != nil {
-		return nil, fmt.Errorf("failed to declare exchange: %w", err)
+		return param.LoginResponse{}, fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
 	queue, err := s.eventPublisher.CreateQueue("user_service_responses", true, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create queue: %w", err) // Propagate error
+		return param.LoginResponse{}, fmt.Errorf("failed to create queue: %w", err) // Propagate error
 	}
 
 	if err := s.eventPublisher.CreateBinding(queue.Name, "user_response", "auth_exchange"); err != nil {
-		return nil, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+		return param.LoginResponse{}, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
 
 	}
 
-	msgs, err := s.eventPublisher.Consume(queue.Name, "auth_service", false)
+	msgs, err := s.eventPublisher.Consume("user_service_responses", "auth_service", true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to consume messages: %w", err)
+		return param.LoginResponse{}, fmt.Errorf("failed to consume from user_service_responses: %w", err)
 	}
 
-	userChannel := make(chan interface{})
-
-	go func() {
-		defer close(userChannel)
-
-		for d := range msgs {
-			// data UserResponse
-			var data interface{}
-			data, err := UnmarshalData(d.Body) // Unmarshal to generic interface
-			if err != nil {
-				log.Println("Error unmarshalling data:", err)
-				// Handle the error accordingly
+	for {
+		select {
+		case d := <-msgs:
+			var response param.LoginResponse
+			if err := json.Unmarshal(d.Body, &response); err != nil {
+				log.Printf("Failed to unmarshal user service response: %v", err)
 				continue
-			} else {
-				userChannel <- data
 			}
 
-			// The existing auth service consumer (listening to "login_requests") can receive
-			// both the initial login request and the user service response on the same queue.
-			// switch msg := data.(type) {
-			// case param.LoginRequest: // Handle login request
-			// 	// You can access login request data directly from msg (assuming correct type)
-			// 	userChannel <- msg // Send login request for further processing (optional)
-			// 	// ... (optional logic for handling login request within auth service) ...
-			// case string: // Handle user service response (assuming string message)
-			// 	if msg == "user_validated" {
-			// 		// User validated, generate tokens
-			// 		// ... (logic for token generation and response) ...
-			// 	} else if msg == "user_not_found" {
-			// 		// User not found, return error response
-			// 		returnError := errors.New("user not found")
-			// 		userChannel <- returnError // Send error message (optional)
-			// 	} else {
-			// 		// Handle unexpected message type
-			// 		log.Printf("Unknown message type received: %s", msg)
-			// 	}
-			// default:
-			// 	// Handle unexpected data type
-			// 	log.Printf("Unexpected data type received: %T", data)
-			// }
+			if response.User.Email == email {
+				return response, nil
+			}
 
-			d.Ack(false) // Acknowledge the message after processing
+		case <-ctx.Done():
+			return param.LoginResponse{}, ctx.Err()
 		}
-	}()
-
-	return userChannel, nil
-
+	}
 }
+
+//!!
+
+// func (s authService) waitForConsumeMessages() (<-chan interface{}, error) {
+
+// 	//TODO for consuming!
+// 	if err := s.eventPublisher.DeclareExchange("auth_exchange", "direct"); err != nil {
+// 		return nil, fmt.Errorf("failed to declare exchange: %w", err)
+// 	}
+
+// 	queue, err := s.eventPublisher.CreateQueue("user_service_responses", true, false)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to create queue: %w", err) // Propagate error
+// 	}
+
+// 	if err := s.eventPublisher.CreateBinding(queue.Name, "user_response", "auth_exchange"); err != nil {
+// 		return nil, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+
+// 	}
+
+// 	msgs, err := s.eventPublisher.Consume(queue.Name, "auth_service", false)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to consume messages: %w", err)
+// 	}
+
+// 	userChannel := make(chan interface{})
+
+// 	go func() {
+// 		defer close(userChannel)
+
+// 		for d := range msgs {
+// 			// data UserResponse
+// 			var data interface{}
+// 			data, err := UnmarshalData(d.Body) // Unmarshal to generic interface
+// 			if err != nil {
+// 				log.Println("Error unmarshalling data:", err)
+// 				// Handle the error accordingly
+// 				continue
+// 			} else {
+// 				userChannel <- data
+// 			}
+
+// 			// The existing auth service consumer (listening to "login_requests") can receive
+// 			// both the initial login request and the user service response on the same queue.
+// 			// switch msg := data.(type) {
+// 			// case param.LoginRequest: // Handle login request
+// 			// 	// You can access login request data directly from msg (assuming correct type)
+// 			// 	userChannel <- msg // Send login request for further processing (optional)
+// 			// 	// ... (optional logic for handling login request within auth service) ...
+// 			// case string: // Handle user service response (assuming string message)
+// 			// 	if msg == "user_validated" {
+// 			// 		// User validated, generate tokens
+// 			// 		// ... (logic for token generation and response) ...
+// 			// 	} else if msg == "user_not_found" {
+// 			// 		// User not found, return error response
+// 			// 		returnError := errors.New("user not found")
+// 			// 		userChannel <- returnError // Send error message (optional)
+// 			// 	} else {
+// 			// 		// Handle unexpected message type
+// 			// 		log.Printf("Unknown message type received: %s", msg)
+// 			// 	}
+// 			// default:
+// 			// 	// Handle unexpected data type
+// 			// 	log.Printf("Unexpected data type received: %T", data)
+// 			// }
+
+// 			d.Ack(false) // Acknowledge the message after processing
+// 		}
+// 	}()
+
+// 	return userChannel, nil
+
+// }
 
 func UnmarshalData(data []byte) (param.UserResponse, error) {
 	var user param.UserResponse

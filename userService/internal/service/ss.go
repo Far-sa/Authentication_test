@@ -69,30 +69,48 @@ func (s *userService) Register(ctx context.Context, req param.RegisterRequest) (
 
 func (s *userService) StartMessageListener(ctx context.Context) error {
 	//TODO need to create exchange,queue,binding first
+
+	log.Println("Starting message listener...")
+
 	if err := s.messageBroker.DeclareExchange("auth_exchange", "direct"); err != nil {
+		log.Printf("Failed to declare exchange: %v", err)
 		return fmt.Errorf("failed to declare exchange: %w", err)
 	}
+	log.Println("Exchange declared.")
 
 	queue, err := s.messageBroker.CreateQueue("login_requests", true, false)
 	if err != nil {
+		log.Printf("Failed to create queue: %v", err)
 		return fmt.Errorf("failed to create queue: %w", err) // Propagate error
 	}
+	log.Println("Queue created.")
 
 	if err := s.messageBroker.CreateBinding(queue.Name, "login", "auth_exchange"); err != nil {
+		log.Printf("Failed to bind queue: %v", err)
 		return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
 	}
+	log.Println("Queue bound to exchange.")
 
 	msgs, err := s.messageBroker.Consume(queue.Name, "user_service", false)
 	if err != nil {
+		log.Printf("Failed to start message listener: %v", err)
 		return fmt.Errorf("failed to start message listener: %w", err)
 	}
+
+	// Start consuming messages in a goroutine
 	go func() {
+		log.Println("Consumer started inside go routine, waiting for messages...")
+
 		for d := range msgs {
+			log.Printf("Received message: %s", d.Body)
+
+			// Process the received message
 			err := s.processMessage(ctx, d)
 			if err != nil {
-				log.Printf("failed to process message: %v", err)
+				log.Printf("Failed to process message: %v", err)
 			}
 		}
+		log.Println("Exited message consumption loop")
 	}()
 
 	log.Printf("Waiting for login requests. To exit press CTRL+C")
@@ -104,38 +122,44 @@ func (s *userService) processMessage(ctx context.Context, d amqp.Delivery) error
 	var loginReq param.LoginRequest
 	err := json.Unmarshal(d.Body, &loginReq)
 	if err != nil {
+		log.Printf("Failed to unmarshal login request: %v", err)
 		return fmt.Errorf("failed to unmarshal login request: %w", err)
 	}
+	log.Printf("Processing login request for email: %s", loginReq.Email)
 
-	//! Check data with database
-	userResponse, err := s.CheckUserInDatabase(ctx, loginReq)
+	userExists, err := s.CheckUserInDatabase(ctx, loginReq)
 	if err != nil {
+		log.Printf("Error checking user in database: %v", err)
 		return fmt.Errorf("checking user in database failed : %w", err)
 	}
 
 	response := param.LoginResponse{}
 	// Assuming UserExists is a field in param.LoginResponse indicating user existence
-	if userResponse.UserExist {
-		// User exists, process the response
-		response.Error = "user found"
+	if userExists.UserExist {
+		log.Printf("User found: %s", userExists.User.Email)
 		response.UserExist = true
-		response.User = param.UserInfo{ID: response.User.ID, Email: response.User.Email}
+		response.User = userExists.User
+		response.Error = "user found"
 	} else {
 		// User not found
-		response.Error = "user not found: please register"
+		log.Printf("User not found: %s", loginReq.Email)
 		response.UserExist = false
+		response.Error = "user not found: please register"
 	}
 
 	// Publish to user-service queue
 	err = s.publishUserData(ctx, response)
 	if err != nil {
+		log.Printf("Failed to publish user response: %v", err)
 		return fmt.Errorf("failed to publish response: %w", err)
 	}
 
 	if err := d.Ack(false); err != nil {
+		log.Printf("Failed to acknowledge message: %v", err)
 		return fmt.Errorf("failed to acknowledge message: %w", err)
 	}
 
+	log.Printf("Message processed and acknowledged for email: %s", loginReq.Email)
 	return nil
 }
 
@@ -143,32 +167,19 @@ func (s *userService) CheckUserInDatabase(ctx context.Context, user param.LoginR
 	// Implement logic to check user data based on email using injected UserRepository
 	existingUser, err := s.userRepo.GetUserByEmail(ctx, user.Email)
 	if err != nil {
-		// Handle potential errors from userRepo.GetUserByEmail
-		if errors.Is(err, sql.ErrNoRows) { // Handle user not found error
-			return param.LoginResponse{}, fmt.Errorf("user not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("User not found in database: %s", user.Email)
+			return param.LoginResponse{Error: "user not found: please register"}, fmt.Errorf("user not found: %w", err)
 		}
+		log.Printf("Error fetching user data: %v", err)
 		return param.LoginResponse{}, fmt.Errorf("error fetching user data: %w", err)
 	}
 
-	// Additional checks or data manipulation on the existing user object (optional)
-
+	log.Printf("User found in database: %s", existingUser.Email)
 	return param.LoginResponse{UserExist: true, User: param.UserInfo{ID: existingUser.ID, Email: existingUser.Email}}, nil
 }
 
 func (s *userService) publishUserData(ctx context.Context, userData interface{}) error {
-
-	// if err := s.messageBroker.DeclareExchange("user_events", "topic"); err != nil {
-	// 	return fmt.Errorf("failed to declare exchange: %w", err)
-	// }
-
-	// queue, err := s.messageBroker.CreateQueue("user_info", true, false)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create queue: %w", err) // Propagate error
-	// }
-
-	// if err := s.messageBroker.CreateBinding(queue.Name, "users.*", "user_events"); err != nil {
-	// 	return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
-	// }
 
 	data, jErr := json.Marshal(userData)
 	if jErr != nil {
