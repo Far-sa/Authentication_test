@@ -111,25 +111,25 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 
 func (s authService) publishLoginRequest(ctx context.Context, req param.LoginRequest) error {
 
-	if err := s.eventPublisher.DeclareExchange("login_requests_exchange", "topic"); err != nil {
-		return fmt.Errorf("failed to declare exchange: %w", err)
-	}
+	// if err := s.eventPublisher.DeclareExchange("auth_exchange", "direct"); err != nil {
+	// 	return fmt.Errorf("failed to declare exchange: %w", err)
+	// }
 
-	queue, err := s.eventPublisher.CreateQueue("login_requests", true, false)
-	if err != nil {
-		return fmt.Errorf("failed to create queue: %w", err) // Propagate error
-	}
+	// queue, err := s.eventPublisher.CreateQueue("login_requests", true, false)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create queue: %w", err) // Propagate error
+	// }
 
-	if err := s.eventPublisher.CreateBinding(queue.Name, "login_request.*", "login_requests_exchange"); err != nil {
-		return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
-	}
+	// if err := s.eventPublisher.CreateBinding(queue.Name, "login", "auth_exchange"); err != nil {
+	// 	return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+	// }
 
 	data, jErr := json.Marshal(req)
 	if jErr != nil {
 		return fmt.Errorf("failed to marshal login request: %w", jErr)
 	}
 
-	if err := s.eventPublisher.Publish(ctx, "login_requests_exchange", "login_request.new", amqp.Publishing{
+	if err := s.eventPublisher.Publish(ctx, "auth_exchange", "login", amqp.Publishing{
 		ContentType:   "text/plain",
 		DeliveryMode:  amqp.Persistent,
 		Body:          data,
@@ -144,7 +144,22 @@ func (s authService) publishLoginRequest(ctx context.Context, req param.LoginReq
 
 func (s authService) waitForConsumeMessages() (<-chan interface{}, error) {
 
-	msgs, err := s.eventPublisher.Consume("user_info", "auth_consumer", false)
+	//TODO for consuming!
+	if err := s.eventPublisher.DeclareExchange("auth_exchange", "direct"); err != nil {
+		return nil, fmt.Errorf("failed to declare exchange: %w", err)
+	}
+
+	queue, err := s.eventPublisher.CreateQueue("user_service_responses", true, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create queue: %w", err) // Propagate error
+	}
+
+	if err := s.eventPublisher.CreateBinding(queue.Name, "user_response", "auth_exchange"); err != nil {
+		return nil, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+
+	}
+
+	msgs, err := s.eventPublisher.Consume(queue.Name, "auth_service", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to consume messages: %w", err)
 	}
@@ -314,3 +329,7 @@ func (s authService) VerifyToken(bearerToken string) (*Claims, error) {
 
 // 	return ""
 // }
+
+// In a microservices architecture, it's generally a good practice to have each service be responsible for
+// creating the queues it will consume from. This ensures that the service can function independently and
+// that all necessary resources are in place when the service starts.

@@ -69,8 +69,20 @@ func (s *userService) Register(ctx context.Context, req param.RegisterRequest) (
 
 func (s *userService) StartMessageListener(ctx context.Context) error {
 	//TODO need to create exchange,queue,binding first
-	//TODO implement in auth svc
-	msgs, err := s.messageBroker.Consume("login_requests", "user_service", false)
+	if err := s.messageBroker.DeclareExchange("auth_exchange", "direct"); err != nil {
+		return fmt.Errorf("failed to declare exchange: %w", err)
+	}
+
+	queue, err := s.messageBroker.CreateQueue("login_requests", true, false)
+	if err != nil {
+		return fmt.Errorf("failed to create queue: %w", err) // Propagate error
+	}
+
+	if err := s.messageBroker.CreateBinding(queue.Name, "login", "auth_exchange"); err != nil {
+		return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+	}
+
+	msgs, err := s.messageBroker.Consume(queue.Name, "user_service", false)
 	if err != nil {
 		return fmt.Errorf("failed to start message listener: %w", err)
 	}
@@ -120,6 +132,10 @@ func (s *userService) processMessage(ctx context.Context, d amqp.Delivery) error
 		return fmt.Errorf("failed to publish response: %w", err)
 	}
 
+	if err := d.Ack(false); err != nil {
+		return fmt.Errorf("failed to acknowledge message: %w", err)
+	}
+
 	return nil
 }
 
@@ -141,25 +157,25 @@ func (s *userService) CheckUserInDatabase(ctx context.Context, user param.LoginR
 
 func (s *userService) publishUserData(ctx context.Context, userData interface{}) error {
 
-	if err := s.messageBroker.DeclareExchange("user_events", "topic"); err != nil {
-		return fmt.Errorf("failed to declare exchange: %w", err)
-	}
+	// if err := s.messageBroker.DeclareExchange("user_events", "topic"); err != nil {
+	// 	return fmt.Errorf("failed to declare exchange: %w", err)
+	// }
 
-	queue, err := s.messageBroker.CreateQueue("user_info", true, false)
-	if err != nil {
-		return fmt.Errorf("failed to create queue: %w", err) // Propagate error
-	}
+	// queue, err := s.messageBroker.CreateQueue("user_info", true, false)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create queue: %w", err) // Propagate error
+	// }
 
-	if err := s.messageBroker.CreateBinding(queue.Name, "users.*", "user_events"); err != nil {
-		return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
-	}
+	// if err := s.messageBroker.CreateBinding(queue.Name, "users.*", "user_events"); err != nil {
+	// 	return fmt.Errorf("failed to bind queue: %w", err) // Propagate error
+	// }
 
 	data, jErr := json.Marshal(userData)
 	if jErr != nil {
 		return fmt.Errorf("failed to serialize user data: %w", jErr)
 	}
 
-	if err := s.messageBroker.Publish(ctx, "user_events", "users.new", amqp.Publishing{
+	if err := s.messageBroker.Publish(ctx, "auth_exchange", "user_response", amqp.Publishing{
 		ContentType:   "text/plain",
 		DeliveryMode:  amqp.Persistent,
 		Body:          data,
