@@ -68,6 +68,7 @@ func (s *userService) Register(ctx context.Context, req param.RegisterRequest) (
 }
 
 func (s *userService) StartMessageListener(ctx context.Context) error {
+	//TODO need to create exchange,queue,binding first
 	//TODO implement in auth svc
 	msgs, err := s.messageBroker.Consume("login_requests", "user_service", false)
 	if err != nil {
