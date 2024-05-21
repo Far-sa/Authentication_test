@@ -75,7 +75,7 @@ func TestUnmarshalUser(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			user, err := service.UnmarshalUser(c.input)
+			user, err := service.UnmarshalData(c.input)
 			if (err != nil) != c.wantErr {
 				t.Errorf("unmarshalUser() error = %v, wantErr %v", err, c.wantErr)
 				return

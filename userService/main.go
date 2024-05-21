@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -51,7 +52,10 @@ func main() {
 	}
 
 	userService := userService.NewService(configAdapter, userRepository, publisher, zapLogger)
-
+	mErr := userService.StartMessageListener(context.Background())
+	if mErr != nil {
+		log.Fatalf("failed to start message listener: %v", mErr)
+	}
 	// ozzoValidator := validator.New(userRepository)
 
 	//* Initialize grpc client
