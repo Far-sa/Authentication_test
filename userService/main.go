@@ -46,7 +46,7 @@ func main() {
 
 	// log.Println("Migrations completed successfully!")
 
-	publisher, err := messaging.NewRabbitClient(configAdapter)
+	publisher, err := messaging.NewRabbitMQClient(configAdapter)
 	if err != nil {
 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
 	}

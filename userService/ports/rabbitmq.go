@@ -7,7 +7,7 @@ import (
 )
 
 type EventPublisher interface {
-	GetChannel() (*amqp.Channel, error)
+	//GetChannel() (*amqp.Channel, error)
 	Close() error
 
 	DeclareExchange(name, kind string) error

@@ -69,6 +69,9 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 	// 	return param.LoginResponse{}, fmt.Errorf("failed to consume messages from user-svc: %w", err)
 	// }
 
+	// Set a timeout for waiting for the user service response
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second) // Adjust the timeout as needed
+	defer cancel()
 	response, err := s.waitForUserServiceResponse(ctx, loginReq.Email)
 	if err != nil {
 		log.Printf("Failed to get user service response: %v", err)
@@ -157,28 +160,81 @@ func (s *authService) waitForUserServiceResponse(ctx context.Context, email stri
 
 	}
 
-	msgs, err := s.eventPublisher.Consume("user_service_responses", "auth_service", true)
-	if err != nil {
-		return param.LoginResponse{}, fmt.Errorf("failed to consume from user_service_responses: %w", err)
-	}
+	// Create a channel to receive the response
+	responseChan := make(chan param.LoginResponse)
+	errorChan := make(chan error)
 
-	for {
-		select {
-		case d := <-msgs:
+	// Start a goroutine to consume messages from the "user_service_responses" queue
+	go func() {
+		log.Println("Starting to consume messages from user_service_responses queue")
+
+		msgs, err := s.eventPublisher.Consume(queue.Name, "auth_service", false)
+		if err != nil {
+			log.Printf("Failed to consume messages: %v", err)
+			errorChan <- fmt.Errorf("failed to consume messages: %w", err)
+			return
+		}
+
+		log.Println("Successfully started consuming messages")
+
+		for d := range msgs {
+			log.Printf("Received message: %s", d.Body)
+
 			var response param.LoginResponse
-			if err := json.Unmarshal(d.Body, &response); err != nil {
-				log.Printf("Failed to unmarshal user service response: %v", err)
-				continue
+			err := json.Unmarshal(d.Body, &response)
+			if err != nil {
+				log.Printf("Failed to unmarshal response: %v", err)
+				errorChan <- fmt.Errorf("failed to unmarshal response: %w", err)
+				return
 			}
 
 			if response.User.Email == email {
-				return response, nil
+				log.Printf("Matching response found for email: %s", email)
+				responseChan <- response
+				return
 			}
-
-		case <-ctx.Done():
-			return param.LoginResponse{}, ctx.Err()
 		}
+
+		log.Println("No matching response found")
+		errorChan <- fmt.Errorf("no matching response found")
+	}()
+
+	// Wait for the response or context cancellation
+	select {
+	case <-ctx.Done():
+		log.Println("Context canceled while waiting for user service response")
+		return param.LoginResponse{}, fmt.Errorf("context canceled")
+	case response := <-responseChan:
+		log.Println("Received user service response")
+		return response, nil
+	case err := <-errorChan:
+		log.Printf("Error occurred while waiting for user service response: %v", err)
+		return param.LoginResponse{}, err
 	}
+	//!!!
+
+	// msgs, err := s.eventPublisher.Consume(queue.Name, "auth_service", true)
+	// if err != nil {
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to consume from user_service_responses: %w", err)
+	// }
+
+	// for {
+	// 	select {
+	// 	case d := <-msgs:
+	// 		var response param.LoginResponse
+	// 		if err := json.Unmarshal(d.Body, &response); err != nil {
+	// 			log.Printf("Failed to unmarshal user service response: %v", err)
+	// 			continue
+	// 		}
+
+	// 		if response.User.Email == email {
+	// 			return response, nil
+	// 		}
+
+	// 	case <-ctx.Done():
+	// 		return param.LoginResponse{}, ctx.Err()
+	// 	}
+	// }
 }
 
 //!!
