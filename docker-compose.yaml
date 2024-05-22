@@ -8,15 +8,18 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:8888" #! real scenario 80
       - "--entrypoints.websecure.address=:8443" #! real scenario 443
+      - "--entrypoints.traefik.address=:8081" #! Dashboard entry point
       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--api.dashboard=true"  # Enable dashboard
+
       # - "--configfile=/etc/traefik/traefik_conf.yaml"  # Specify the custom config file path
     ports:
       - "8888:8888"
       - "8443:8443"
-      - "8081:8080"  #? Expose Traefik dashboard
+      - "8081:8081"  #? Expose Traefik dashboard
     networks:
       - shared-net
     volumes:

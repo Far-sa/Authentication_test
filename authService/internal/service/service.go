@@ -60,11 +60,12 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 		return param.LoginResponse{}, fmt.Errorf("failed to publish login request: %w", err)
 	}
 
-	//! Get response from user service
 	log.Println("Waiting for user service response")
 
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second) // Adjust the timeout as needed
+	//! Increase the timeout to 60 seconds for testing purposes
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) // Adjust the timeout as needed
 	defer cancel()
+
 	response, err := s.waitForUserServiceResponse(ctx, loginReq.Email)
 	if err != nil {
 		log.Printf("Failed to get user service response: %v", err)
@@ -102,7 +103,7 @@ func (s authService) publishLoginRequest(ctx context.Context, req param.LoginReq
 	}
 
 	if err := s.eventPublisher.Publish(ctx, "auth_exchange", "login", amqp.Publishing{
-		ContentType:   "text/plain",
+		ContentType:   "application/json",
 		DeliveryMode:  amqp.Persistent,
 		Body:          data,
 		CorrelationId: uuid.NewString(),
@@ -121,10 +122,15 @@ func (s *authService) waitForUserServiceResponse(ctx context.Context, email stri
 		return param.LoginResponse{}, fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
-	queue, err := s.eventPublisher.CreateQueue("user_service_responses", true, false)
+	queue, err := s.eventPublisher.CreateQueue("", true, true) //! use a unique, non-durable queue
 	if err != nil {
-		return param.LoginResponse{}, fmt.Errorf("failed to create queue: %w", err) // Propagate error
+		return param.LoginResponse{}, fmt.Errorf("failed to create queue: %w", err)
 	}
+
+	// queue, err := s.eventPublisher.CreateQueue("user_service_responses", true, false)
+	// if err != nil {
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to create queue: %w", err) // Propagate error
+	// }
 
 	if err := s.eventPublisher.CreateBinding(queue.Name, "user_response", "auth_exchange"); err != nil {
 		return param.LoginResponse{}, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
@@ -138,8 +144,9 @@ func (s *authService) waitForUserServiceResponse(ctx context.Context, email stri
 	// Start a goroutine to consume messages from the "user_service_responses" queue
 	go func() {
 		log.Println("Starting to consume messages from user_service_responses queue")
-
-		msgs, err := s.eventPublisher.Consume(queue.Name, "auth_service", false)
+		//! each consumer gets a unique tag
+		consumerTag := fmt.Sprintf("auth_service_%s", uuid.NewString())
+		msgs, err := s.eventPublisher.Consume(queue.Name, consumerTag, false)
 		if err != nil {
 			log.Printf("Failed to consume messages: %v", err)
 			errorChan <- fmt.Errorf("failed to consume messages: %w", err)
@@ -162,7 +169,10 @@ func (s *authService) waitForUserServiceResponse(ctx context.Context, email stri
 			if response.User.Email == email {
 				log.Printf("Matching response found for email: %s", email)
 				responseChan <- response
+				d.Ack(false) //! Acknowledge the message
 				return
+			} else {
+				log.Printf("Response email %s does not match request email %s", response.User.Email, email)
 			}
 		}
 
