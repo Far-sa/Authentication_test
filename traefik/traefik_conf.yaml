@@ -24,17 +24,17 @@ certificatesResolvers:
 middlewares:
   ipwhitelist:
     ipWhiteList:
-      sourceRange: ["your_allowed_ip_1", "your_allowed_ip_2", "your_allowed_network_range"]
+      sourceRange: ["172.18.0.2", "172.18.0.6", "172.18.0.9","172.18.0.5","172.18.0.3","your_allowed_network_range"]
   redirect-to-login-user:
     redirectRegex:
       regex: "^https?://(www\\.)?example\\.com/user/(update|profile|settings|other-protected-path)"
-      replacement: "https://www.example.com/login"
+      replacement: "https://auth.localhost/login"
       permanent: false
 
   redirect-to-login-payment:
     redirectRegex:
       regex: "^https?://(www\\.)?example\\.com/payment"
-      replacement: "https://www.example.com/login"
+      replacement: "https://auth.localhost/login"
       permanent: false
   
   # redirect-to-login:
@@ -43,10 +43,11 @@ middlewares:
   #     replacement: "https://www.example.com/login"
   #     permanent: false
 
+## Host Rules: /etc/hosts
 routers:
   # Auth service router
   auth:
-    rule: "Host(`authservice`) && PathPrefix(`/login`)"
+    rule: "Host(`auth.localhost`) && PathPrefix(`/login`)"
     service: auth
     entryPoints:
       - websecure
@@ -55,7 +56,7 @@ routers:
 
   # User service router (Public routes)
   user:
-    rule: "Host(`userservice`) && PathPrefix(`/user`)"
+    rule: "Host(`user.localhost`) && PathPrefix(`/user/register`)"
     service: user
     entryPoints:
       - websecure
@@ -63,7 +64,7 @@ routers:
       certResolver: myresolver
 
   user-protected:
-    rule: "Host(`www.example.com`) && (PathPrefix(`/user/update`) || PathPrefix(`/user/profile`) || PathPrefix(`/user/settings`) || PathPrefix(`/user/other-protected-path`))"
+    rule: "Host(`user.localhost`) && (PathPrefix(`/user/update`) || PathPrefix(`/user/profile`) || PathPrefix(`/user/settings`) || PathPrefix(`/user/other-protected-path`))"
     service: user_service
     middlewares:
       - redirect-to-login-user
@@ -94,7 +95,7 @@ routers:
 
   # Internal services
   rabbitmq:
-    rule: "Host(`rabbitmq`)"
+    rule: "Host(`rabbitmq.localhost`)"
     service: rabbitmq
     middlewares:
       - ipwhitelist
@@ -104,7 +105,7 @@ routers:
       certResolver: myresolver
 
   prometheus:
-    rule: "Host(`prometheus`) && PathPrefix(`/metrics`)" # prometheus.internal
+    rule: "Host(`prometheus.localhost`) && PathPrefix(`/metrics`)" # prometheus.internal
     service: prometheus_service
     middlewares:
       - ipwhitelist
@@ -114,7 +115,7 @@ routers:
       certResolver: myresolver
 
   grafana:
-    rule: "Host(`grafana`) && PathPrefix(`/api/prometheus/scrape`)"
+    rule: "Host(`grafana.localhost`) && PathPrefix(`/api/prometheus/scrape`)"
     service: grafana
     middlewares:
       - ipwhitelist
@@ -124,7 +125,7 @@ routers:
       certResolver: myresolver
 
   cadvisor:
-    rule: "Host(`cadvisor`)"
+    rule: "Host(`cadvisor.localhost`)"
     service: cadvisor
     middlewares:
       - ipwhitelist
@@ -134,7 +135,7 @@ routers:
       certResolver: myresolver
 
   alertmanager:
-    rule: "Host(`alertmanager`)" # alertmanager.internal
+    rule: "Host(`alertmanager.localhost`)" # alertmanager.internal
     service: alertmanager
     middlewares:
       - ipwhitelist
@@ -143,6 +144,7 @@ routers:
     tls:
       certResolver: myresolver
 
+# Service URLs: pointing to the internal Docker network hostnames and ports
 services:
   auth:
     loadBalancer:

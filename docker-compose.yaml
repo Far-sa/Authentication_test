@@ -1,32 +1,32 @@
 services:
-  # traefik:
-  #   image: traefik:v2.5
-  #   container_name: reverse-proxy
-  #   command:
-  #     - "--api.insecure=true"
-  #     - "--providers.docker=true"
-  #     - "--providers.docker.exposedbydefault=false"
-  #     - "--entrypoints.web.address=:80"
-  #     - "--configfile=/etc/traefik/traefik_conf.yaml"  # Specify the custom config file path
-  #     - "--entrypoints.websecure.address=:443"
-  #     - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
-  #     - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
-  #     - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
-  #     - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-  #   ports:
-  #     - "8090:80"
-  #     - "443:443"
-  #     - "8080:8080"  # Expose Traefik dashboard
-  #   networks:
-  #     - shared-net
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #     - ./letsencrypt:/letsencrypt
-  #     - ./traefik/traefik_conf.yml:/etc/traefik/traefik.yml
+  traefik:
+    image: traefik:v2.5
+    container_name: reverse-proxy
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--configfile=/etc/traefik/traefik_conf.yaml"  # Specify the custom config file path
+    ports:
+      - "8090:80"
+      - "443:443"
+      - "8080:8080"  # Expose Traefik dashboard
+    networks:
+      - shared-net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+      - ./traefik/traefik_conf.yml:/etc/traefik/traefik.yml
 
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.traefik.rule=Host(`traefik`)"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik`)"
 
   rabbitmq:
     image: rabbitmq:3.9-management
@@ -49,7 +49,7 @@ services:
     restart: always
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq`)" # rabbitmq.example.com
+      - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.localhost`)" # rabbitmq.example.com
       - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
     networks:
       - shared-net
@@ -139,8 +139,8 @@ services:
     restart: always
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.auth.rule=Host(`authservice`) && PathPrefix(`/login`)" # auth.example.com
-      - "traefik.http.services.auth.loadbalancer.server.port=8001"
+      - "traefik.http.routers.auth.rule=Host(`auth.localhost`) && PathPrefix(`/login`)" # auth.example.com
+      - "traefik.http.services.auth.loadbalancer.server.port=5001"
       - "traefik.http.routers.auth.entrypoints=websecure"
       - "traefik.http.routers.auth.tls=true"
       - "traefik.http.routers.auth.tls.certresolver=myresolver"
@@ -180,17 +180,17 @@ services:
       - shared-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.user.rule=Host(`userservice`) && PathPrefix(`/user/register`)" # user.example.com
-      - "traefik.http.services.user.loadbalancer.server.port=8000"
+      - "traefik.http.routers.user.rule=Host(`user.localhost`) && PathPrefix(`/user/register`)" # user.example.com
+      - "traefik.http.services.user.loadbalancer.server.port=5000"
       - "traefik.http.routers.user.entrypoints=websecure"
       - "traefik.http.routers.user.tls=true"
       - "traefik.http.routers.user.tls.certresolver=myresolver"
-      - "traefik.http.routers.user-protected.rule=Host(`userservice`) && (PathPrefix(`/user/update`) || PathPrefix(`/user/profile`) || PathPrefix(`/user/settings`) || PathPrefix(`/user/other-protected-path`))"
+      - "traefik.http.routers.user-protected.rule=Host(`user.localhost`) && (PathPrefix(`/user/update`) || PathPrefix(`/user/profile`) || PathPrefix(`/user/settings`) || PathPrefix(`/user/other-protected-path`))"
       - "traefik.http.routers.user-protected.entrypoints=websecure"
       - "traefik.http.routers.user-protected.tls=true"
       - "traefik.http.routers.user-protected.tls.certresolver=myresolver"
-      - "traefik.http.middlewares.redirect-to-login-user.redirectregex.regex=^https?://localhost/user/(update|profile|settings|other-protected-path)"
-      - "traefik.http.middlewares.redirect-to-login-user.redirectregex.replacement=https://localhost/login"
+      - "traefik.http.middlewares.redirect-to-login-user.redirectregex.regex=^https?://user.localhost/user/(update|profile|settings|other-protected-path)"
+      - "traefik.http.middlewares.redirect-to-login-user.redirectregex.replacement=https://auth.localhost/login"
       - "traefik.http.middlewares.redirect-to-login-user.redirectregex.permanent=false"
       - "traefik.http.routers.user-protected.middlewares=redirect-to-login-user"
 
@@ -216,7 +216,7 @@ services:
       - cadvisor
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus`)" # prometheus.example.com
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.localhost`)" # prometheus.example.com
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
     networks:
       - shared-net
@@ -253,7 +253,7 @@ services:
       - "--storage.path=/alertmanager"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.alertmanager.rule=Host(`alertmanager`)" # alertmanager.example.com
+      - "traefik.http.routers.alertmanager.rule=Host(`alertmanager.localhost`)" # alertmanager.example.com
       - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
     networks:
       - shared-net
@@ -272,7 +272,7 @@ services:
       mode: global
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor`)" # cadvisor.example.com
+      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.localhost`)" # cadvisor.example.com
       - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
     networks:
       - shared-net
@@ -294,7 +294,7 @@ services:
       - prometheus
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana`)" # grafana.example.com
+      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)" # grafana.example.com
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     networks:
       - shared-net
