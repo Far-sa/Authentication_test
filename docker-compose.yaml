@@ -6,27 +6,27 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.address=:8888" #! real scenario 80
+      - "--entrypoints.websecure.address=:8443" #! real scenario 443
       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-      - "--configfile=/etc/traefik/traefik_conf.yaml"  # Specify the custom config file path
+      # - "--configfile=/etc/traefik/traefik_conf.yaml"  # Specify the custom config file path
     ports:
-      - "8090:80"
-      - "443:443"
-      - "8080:8080"  # Expose Traefik dashboard
+      - "8888:8888"
+      - "8443:8443"
+      - "8081:8080"  #? Expose Traefik dashboard
     networks:
       - shared-net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./letsencrypt:/letsencrypt
-      - ./traefik/traefik_conf.yml:/etc/traefik/traefik.yml
+      - ./traefik/traefik_conf.yaml:/etc/traefik/traefik.yml
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`traefik`)"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)" #! real scenario traefik.puppet.com
 
   rabbitmq:
     image: rabbitmq:3.9-management
@@ -49,7 +49,7 @@ services:
     restart: always
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.localhost`)" # rabbitmq.example.com
+      - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.localhost`)" #! rabbitmq.puppet.com
       - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
     networks:
       - shared-net
@@ -180,7 +180,7 @@ services:
       - shared-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.user.rule=Host(`user.localhost`) && PathPrefix(`/user/register`)" # user.example.com
+      - "traefik.http.routers.user.rule=Host(`user.localhost`) && PathPrefix(`/user/register`)" #! user.puppet.com
       - "traefik.http.services.user.loadbalancer.server.port=5000"
       - "traefik.http.routers.user.entrypoints=websecure"
       - "traefik.http.routers.user.tls=true"

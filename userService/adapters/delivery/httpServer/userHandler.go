@@ -32,7 +32,8 @@ func (s server) Serve() error {
 
 	s.logger.Info("server is running")
 
-	s.Router.POST("/register", s.Register)
+	//TODO add group for user handler
+	s.Router.POST("/user/register", s.Register)
 	s.Router.GET("/metrics", s.handleMetrics)
 
 	// port := s.config.GetHTTPConfig().Port
