@@ -34,6 +34,7 @@ func (s server) Serve() error {
 
 	//TODO add group for user handler
 	s.Router.POST("/user/register", s.Register)
+	s.Router.GET("/user/profile", s.Profile, AuthMiddleware)
 	s.Router.GET("/metrics", s.handleMetrics)
 
 	// port := s.config.GetHTTPConfig().Port
@@ -91,13 +92,39 @@ func (s server) Register(c echo.Context) error {
 	return c.JSON(http.StatusCreated, resp)
 }
 
+func (s server) Profile(c echo.Context) error {
+	userID, ok := c.Get("user_id").(uint)
+	if !ok {
+		return c.Redirect(http.StatusTemporaryRedirect, "http://auth.localhost/login")
+		//		return echo.ErrUnauthorized
+
+	}
+
+	ctx := c.Request().Context()
+
+	user, err := s.userSvc.GetUserProfile(ctx, userID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, user)
+}
+
 func (s server) handleMetrics(c echo.Context) error {
 	// Serve Prometheus metrics using promhttp.Handler()
 	promhttp.Handler().ServeHTTP(c.Response().Writer, c.Request())
 	return nil
 }
 
-func (s server) Profile(e echo.Context) error {
-	s.logger.Warn("unimplemented")
-	panic("")
+// AuthMiddleware checks if the token is present in the request header.
+func AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		token := c.Request().Header.Get("Authorization")
+		if token == "" {
+			// Redirect to auth service login endpoint
+			return c.Redirect(http.StatusTemporaryRedirect, "http://auth.localhost/login")
+		}
+		// If token is present, proceed with the request
+		return next(c)
+	}
 }

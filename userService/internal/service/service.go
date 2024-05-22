@@ -66,6 +66,14 @@ func (s *userService) Register(ctx context.Context, req param.RegisterRequest) (
 	}, nil
 }
 
+func (s *userService) GetUserProfile(ctx context.Context, userID uint) (param.UserInfo, error) {
+	userInfo, err := s.userRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		return param.UserInfo{}, err
+	}
+	return param.UserInfo{ID: userInfo.ID}, nil
+}
+
 func (s *userService) StartMessageListener(ctx context.Context) error {
 	//TODO need to create exchange,queue,binding first
 
@@ -241,33 +249,3 @@ func mapByteToString(bytes []byte) string {
 	// Convert byte slice ([]byte) to string
 	return string(bytes)
 }
-
-//!!!!!>
-
-//!!-- imp
-// func main() {
-// 	rabbitMQ, err := NewRabbitMQ("amqp://guest:guest@localhost:5672/")
-// 	if err != nil {
-// 		log.Fatalf("failed to connect to RabbitMQ: %v", err)
-// 	}
-// 	defer rabbitMQ.Close()
-
-// 	userSvc := NewUserService(rabbitMQ)
-
-// 	// Start the message listener
-// 	err = userSvc.startMessageListener()
-// 	if err != nil {
-// 		log.Fatalf("failed to start message listener: %v", err)
-// 	}
-
-// 	// Set up HTTP server and handlers
-// 	http.HandleFunc("/register", userSvc.registerUserHandler)
-// 	http.HandleFunc("/update", userSvc.updateUserHandler)
-// 	http.HandleFunc("/delete", userSvc.deleteUserHandler)
-// 	http.HandleFunc("/info", userSvc.getUserInfoHandler)
-
-// 	log.Println("Starting HTTP server on :8080")
-// 	if err := http.ListenAndServe(":8080", nil); err != nil {
-// 		log.Fatalf("failed to start HTTP server: %v", err)
-// 	}
-// }
