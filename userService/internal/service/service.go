@@ -30,7 +30,6 @@ func NewService(cfg ports.Config, repo ports.UserRepository, publisher ports.Eve
 
 func (s *userService) Register(ctx context.Context, req param.RegisterRequest) (param.RegisterResponse, error) {
 
-	// hashed, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 8)
 	hashed, err := HashPassword(req.Password)
 	if err != nil {
 		s.logger.Error("Error generating hashed password", zap.Error(err))
@@ -49,7 +48,7 @@ func (s *userService) Register(ctx context.Context, req param.RegisterRequest) (
 		return param.RegisterResponse{}, fmt.Errorf("error creating user: %v", err)
 	}
 
-	//? publish event
+	//? publish event if necessary	 in case of  scenario changed
 	// Call separate function to publish user data
 	// if err := us.publishUserData(ctx, createdUser); err != nil {
 	// 	us.logger.Error("Failed to publish user credential to auth-service", zap.Error(err))
