@@ -90,3 +90,8 @@ func (rc RabbitClient) Publish(ctx context.Context, exchangeName string, routing
 func (rc *RabbitClient) Consume(queue, consumer string, autoAck bool) (<-chan amqp.Delivery, error) {
 	return rc.ch.Consume(queue, consumer, autoAck, false, false, false, nil)
 }
+
+func (rc RabbitClient) DeleteQueue(name string) error {
+	_, err := rc.ch.QueueDelete(name, false, false, false)
+	return err
+}

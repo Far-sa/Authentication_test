@@ -162,3 +162,8 @@ func (m *mockEventPublisher) Publish(ctx context.Context, exchange, routingKey s
 	args := m.Called(ctx, exchange, routingKey, options)
 	return args.Error(0)
 }
+
+func (m *mockEventPublisher) DeleteQueue(name string) error {
+	args := m.Called(name)
+	return args.Error(0)
+}

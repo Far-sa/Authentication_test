@@ -35,6 +35,5 @@ type EventPublisher interface {
 	CreateBinding(queueName, routingKey, exchangeName string) error
 	Consume(queueName, consumer string, autoAck bool) (<-chan amqp.Delivery, error)
 	Publish(ctx context.Context, exchange, routingKey string, options amqp.Publishing) error
-	// PublishUser(userInfo *UserInfo) error
-
+	DeleteQueue(name string) error
 }

@@ -180,21 +180,33 @@ func (s *userService) CheckUserInDatabase(ctx context.Context, user param.LoginR
 
 func (s *userService) publishUserData(ctx context.Context, userData interface{}) error {
 
+	// Log the userData before serialization
+	log.Printf("Publishing user data: %+v", userData)
+
 	data, jErr := json.Marshal(userData)
 	if jErr != nil {
 		return fmt.Errorf("failed to serialize user data: %w", jErr)
 	}
 
+	// Log the serialized data and its length
+	log.Printf("Serialized user data: %s", data)
+	log.Printf("Serialized data length: %d", len(data))
+
+	// Ensure the data is not empty
+	if len(data) == 0 {
+		return fmt.Errorf("serialized user data is empty")
+	}
+
 	if err := s.messageBroker.Publish(ctx, "auth_exchange", "user_response", amqp.Publishing{
-		ContentType:   "text/plain",
+		ContentType:   "application/json",
 		DeliveryMode:  amqp.Persistent,
 		Body:          data,
 		CorrelationId: uuid.NewString(),
 	}); err != nil {
 		return fmt.Errorf("failed to publish user to auth-service: %w", err)
 	}
-	log.Println("User event published successfully")
 
+	log.Println("User event published successfully")
 	return nil
 }
 
