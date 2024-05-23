@@ -93,6 +93,7 @@ func (s server) Register(c echo.Context) error {
 }
 
 func (s server) Profile(c echo.Context) error {
+	//TODO check token
 	userID, ok := c.Get("user_id").(uint)
 	if !ok {
 		return c.Redirect(http.StatusTemporaryRedirect, "http://auth.localhost/login")

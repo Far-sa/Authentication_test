@@ -111,6 +111,12 @@ func (s *userService) StartMessageListener(ctx context.Context) error {
 		for d := range msgs {
 			log.Printf("Received message: %s", d.Body)
 
+			// Acknowledge the message early to avoid re-processing in case of crash
+			if err := d.Ack(false); err != nil {
+				log.Printf("Failed to acknowledge message: %v", err)
+				continue // Move on to the next message
+			}
+
 			// Process the received message
 			err := s.processMessage(ctx, d)
 			if err != nil {
@@ -176,7 +182,7 @@ func (s *userService) CheckUserInDatabase(ctx context.Context, user param.LoginR
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Printf("User not found in database: %s", user.Email)
-			return param.LoginResponse{Error: "user not found: please register"}, fmt.Errorf("user not found: %w", err)
+			return param.LoginResponse{UserExist: false, Error: "user not found: please register"}, fmt.Errorf("user not found: %w", err)
 		}
 		log.Printf("Error fetching user data: %v", err)
 		return param.LoginResponse{}, fmt.Errorf("error fetching user data: %w", err)
@@ -188,33 +194,47 @@ func (s *userService) CheckUserInDatabase(ctx context.Context, user param.LoginR
 
 func (s *userService) publishUserData(ctx context.Context, userData interface{}) error {
 
+	jsonData, err := json.Marshal(userData)
+	if err != nil {
+		log.Printf("Failed to serialize user data to JSON: %v", err)
+		return fmt.Errorf("failed to serialize user data: %w", err)
+	}
+	// Log the serialized JSON for debugging purposes
+	log.Printf("Serialized user data: %s", jsonData)
+
+	// Check if the context is done before proceeding with publishing
+	select {
+	case <-ctx.Done():
+		// The context is canceled or the deadline has been exceeded
+		err := ctx.Err() // Retrieve the error explaining why the context was canceled
+		log.Printf("Context error before publishing: %v", err)
+		return fmt.Errorf("context error before publishing: %w", err)
+	default:
+		// The context is not done, safe to proceed
+	}
 	// Log the userData before serialization
 	log.Printf("Publishing user data: %+v", userData)
 
-	data, jErr := json.Marshal(userData)
-	if jErr != nil {
-		return fmt.Errorf("failed to serialize user data: %w", jErr)
-	}
-
 	// Log the serialized data and its length
-	log.Printf("Serialized user data: %s", data)
-	log.Printf("Serialized data length: %d", len(data))
+	log.Printf("Serialized user data: %s", jsonData)
+	log.Printf("Serialized data length: %d", len(jsonData))
 
 	// Ensure the data is not empty
-	if len(data) == 0 {
+	if len(jsonData) == 0 {
 		return fmt.Errorf("serialized user data is empty")
 	}
 
 	if err := s.messageBroker.Publish(ctx, "auth_exchange", "user_response", amqp.Publishing{
 		ContentType:   "application/json",
 		DeliveryMode:  amqp.Persistent,
-		Body:          data,
+		Body:          jsonData,
 		CorrelationId: uuid.NewString(),
 	}); err != nil {
+		log.Printf("Failed to publish user data to exchange '%s' with routing key '%s': %v", "auth_exchange", "user_response", err)
 		return fmt.Errorf("failed to publish user to auth-service: %w", err)
 	}
 
-	log.Println("User event published successfully")
+	log.Printf("User event published to exchange '%s' with routing key '%s'", "auth_exchange", "user_response")
 	return nil
 }
 

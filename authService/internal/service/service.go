@@ -48,13 +48,11 @@ func NewAuthService(config ports.Config, authRepo ports.AuthRepository, event po
 
 func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.LoginResponse, error) {
 
-	// Create a LoginRequest struct (assuming it has Email and Password fields)
-	loginReq := param.LoginRequest{
-		Email:    req.Email,
-		Password: req.Password,
-	}
+	//! Increase the timeout to 60 seconds for testing purposes
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) // Adjust the timeout as needed
+	defer cancel()
 
-	err := s.publishLoginRequest(ctx, loginReq)
+	err := s.publishLoginRequest(ctx, req)
 	if err != nil {
 		log.Printf("Failed to publish login request: %v", err)
 		return param.LoginResponse{}, fmt.Errorf("failed to publish login request: %w", err)
@@ -62,11 +60,7 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 
 	log.Println("Waiting for user service response")
 
-	//! Increase the timeout to 60 seconds for testing purposes
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) // Adjust the timeout as needed
-	defer cancel()
-
-	response, err := s.waitForUserServiceResponse(ctx, loginReq.Email)
+	response, err := s.waitForUserServiceResponse(ctx, req.Email)
 	if err != nil {
 		log.Printf("Failed to get user service response: %v", err)
 		return param.LoginResponse{}, fmt.Errorf("failed to get user service response: %w", err)
@@ -85,6 +79,7 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 	}
 
 	if err := s.authRepo.StoreToken(response.User.ID, accessToken, time.Now().Add(72*time.Hour)); err != nil {
+		//! TODO: log error
 		fmt.Println("Error storing token:", err)
 	}
 
@@ -97,9 +92,9 @@ func (s authService) Login(ctx context.Context, req param.LoginRequest) (param.L
 
 func (s authService) publishLoginRequest(ctx context.Context, req param.LoginRequest) error {
 
-	data, jErr := json.Marshal(req)
-	if jErr != nil {
-		return fmt.Errorf("failed to marshal login request: %w", jErr)
+	data, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal login request: %w", err)
 	}
 
 	if err := s.messageBroker.Publish(ctx, "auth_exchange", "login", amqp.Publishing{
@@ -118,9 +113,9 @@ func (s authService) publishLoginRequest(ctx context.Context, req param.LoginReq
 // !!
 func (s *authService) waitForUserServiceResponse(ctx context.Context, email string) (param.LoginResponse, error) {
 
-	if err := s.messageBroker.DeclareExchange("auth_exchange", "direct"); err != nil {
-		return param.LoginResponse{}, fmt.Errorf("failed to declare exchange: %w", err)
-	}
+	// if err := s.messageBroker.DeclareExchange("auth_exchange", "direct"); err != nil {
+	// 	return param.LoginResponse{}, fmt.Errorf("failed to declare exchange: %w", err)
+	// }
 
 	// queue, err := s.messageBroker.CreateQueue("", true, true) //! use a unique, non-durable queue
 	// if err != nil {
@@ -128,7 +123,7 @@ func (s *authService) waitForUserServiceResponse(ctx context.Context, email stri
 	// }
 
 	queueName := "user_service_responses_" + uuid.NewString()
-	queue, err := s.messageBroker.CreateQueue(queueName, true, true)
+	queue, err := s.messageBroker.CreateQueue(queueName, false, false)
 	if err != nil {
 		return param.LoginResponse{}, fmt.Errorf("failed to create queue: %w", err) // Propagate error
 	}
@@ -138,53 +133,59 @@ func (s *authService) waitForUserServiceResponse(ctx context.Context, email stri
 		return param.LoginResponse{}, fmt.Errorf("failed to bind queue: %w", err) // Propagate error
 
 	}
-	// Create a channel to receive the response
+
+	responseChan, errorChan := s.consumeMessages(ctx, queue.Name, email)
+
+	select {
+	case <-ctx.Done():
+		log.Println("Context canceled while waiting for user service response")
+		return param.LoginResponse{}, ctx.Err()
+	case response := <-responseChan:
+		log.Println("Received user service response")
+		return response, nil
+	case err := <-errorChan:
+		log.Printf("Error occurred while waiting for user service response: %v", err)
+		return param.LoginResponse{}, err
+	}
+}
+
+func (s *authService) consumeMessages(ctx context.Context, queueName, email string) (<-chan param.LoginResponse, <-chan error) {
 	responseChan := make(chan param.LoginResponse)
 	errorChan := make(chan error)
 
-	// Generate a unique consumer tag
 	consumerTag := "auth_service_" + uuid.NewString()
 
-	// Start a goroutine to consume messages from the "user_service_responses" queue
 	go func() {
-		log.Println("Starting to consume messages from user_service_responses queue")
+		defer close(responseChan)
+		defer close(errorChan)
 
-		msgs, err := s.messageBroker.Consume(queue.Name, consumerTag, false)
+		msgs, err := s.messageBroker.Consume(queueName, consumerTag, false)
 		if err != nil {
-			log.Printf("Failed to consume messages: %v", err)
 			errorChan <- fmt.Errorf("failed to consume messages: %w", err)
 			return
 		}
 
-		log.Println("Successfully started consuming messages")
-
-		//!
 		for {
 			select {
 			case <-ctx.Done():
-				log.Println("Context canceled while waiting for user service response")
-				errorChan <- fmt.Errorf("context canceled")
+				errorChan <- ctx.Err()
 				return
 			case d, ok := <-msgs:
 				if !ok {
-					log.Println("Message channel closed")
 					errorChan <- fmt.Errorf("message channel closed")
 					return
 				}
 
-				log.Printf("Received message: %s", d.Body)
-
 				var response param.LoginResponse
-				err := json.Unmarshal(d.Body, &response)
-				if err != nil {
-					log.Printf("Failed to unmarshal response: %v", err)
+				if err := json.Unmarshal(d.Body, &response); err != nil {
 					errorChan <- fmt.Errorf("failed to unmarshal response: %w", err)
 					return
 				}
 
+				// TODO messages are acknowledged only if the email matches. This could potentially lead to unacknowledged messages
+				//! Potential Dead Letter Queue
 				if response.User.Email == email {
-					log.Printf("Matching response found for email: %s", email)
-					d.Ack(false) // Acknowledge the message
+					d.Ack(false)
 					responseChan <- response
 					return
 				} else {
@@ -193,19 +194,7 @@ func (s *authService) waitForUserServiceResponse(ctx context.Context, email stri
 			}
 		}
 	}()
-
-	// Wait for the response or context cancellation
-	select {
-	case <-ctx.Done():
-		log.Println("Context canceled while waiting for user service response")
-		return param.LoginResponse{}, fmt.Errorf("context canceled")
-	case response := <-responseChan:
-		log.Println("Received user service response")
-		return response, nil
-	case err := <-errorChan:
-		log.Printf("Error occurred while waiting for user service response: %v", err)
-		return param.LoginResponse{}, err
-	}
+	return responseChan, errorChan
 }
 
 //!!@@
